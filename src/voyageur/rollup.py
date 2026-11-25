@@ -25,8 +25,13 @@ Features:
     ✓ heal_counts(): one function turns one heal, its calls and its tries into the counters, the same for every purge, so a
       heal is counted by one definition whether it is read live or from the rollup
     ✓ dims_of(): a client picks the repo, framework and language names and the rollup is never purged, so a name is cut to 100
-      characters, one that could carry a credential (@ : ? # =) is filed under "other", a dimension holds at most 200 distinct
-      values and the four together at most 500 combinations; the rest are filed under "other" and still counted
+      characters, one that could carry a credential is filed under "other" (a character a credential or a URL needs, @ : ? # = or
+      a control character; or a shape of a token, redact.looks_like_credential: a ghp_, github_pat_, sk-, xox or AKIA key, a JWT, a
+      long mixed-case run or hex digest), a dimension holds at most 200 distinct values and the four together at most 500
+      combinations; the rest are filed under "other" and still counted
+    ✓ A day older than HEAL_ROLLUP_DETAIL_DAYS is folded (store.py): its repo, framework and client-language dimensions are
+      dropped and its rows added together, so the table stops growing with the names clients choose. Every counter, the model
+      scope and the page language stay, so a total reads the same before and after
     ✓ The framework breakdown is read from the framework dimension, not stored as a counter of its own, so a free-text name
       is never a counter key
     ✓ scopes_of(): the scopes a heal is counted under: every heal under "", and under each model that made a call in it
@@ -42,6 +47,8 @@ import re
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Mapping, Tuple
 
+from .redact import looks_like_credential
+
 BAD_PR_STATES = ("edited", "reverted", "closed_unmerged")      # a heal a human did not keep as written
 CLOSED_PR_STATES = ("merged_unchanged", "edited", "reverted", "closed_unmerged")
 DURABLE_RUNS, DURABLE_DAYS = 10, 30                           # "still passing 10 runs and 30 days later"
@@ -50,6 +57,8 @@ DAY = 86400
 RETAINED_ONLY = ("locators_fixed", "hot_spots", "runs", "latency")
 # the filters a rollup row can answer: the dimensions it keeps, and the model (a scope of its own)
 DIMENSIONS = ("repo", "framework", "language", "page_language")
+# dimensions a fold drops (page_language is a short list of language codes and stays, so its filter still answers for every day)
+FOLDED_DIMENSIONS = ("repo", "framework", "language")
 # distinct values per dimension, distinct combinations of the four, a name's length, and the name overflow is filed under
 MAX_DIM_VALUES, MAX_DIM_COMBOS, MAX_DIM_LEN, OTHER = 200, 500, 100, "other"
 _PLAIN = re.compile(r"[A-Za-z0-9._/ +-]*")                    # a name that can carry no credential (no @, :, ?, #, = or control character)
@@ -63,13 +72,14 @@ def _k(metric: str, k1: Any = "", k2: Any = "", k3: Any = "") -> Key:
 def dims_of(heal: Mapping[str, Any], known: Dict[str, set]) -> Tuple[str, str, str, str]:
     """The dimension values a heal is filed under ("" for a field the record does not hold). A client chooses these names and the
     rollup is never purged, so a name is cut to MAX_DIM_LEN characters, one with a character a credential or a URL query needs
-    (@ : ? # =) is filed under "other", a dimension holds at most MAX_DIM_VALUES distinct values and all four together at most
+    (@ : ? # =) or the shape of a token (redact.looks_like_credential) is filed under "other", a dimension holds at most MAX_DIM_VALUES distinct values and all four together at most
     MAX_DIM_COMBOS distinct combinations (`known` holds what is stored so far and this call adds to it); past either, the heal is
     still counted, under "other"."""
     out = []
     for d in DIMENSIONS:
         value = str(heal.get(d) or "")[:MAX_DIM_LEN]
-        if not _PLAIN.fullmatch(value) or (value and value not in known[d] and len(known[d]) >= MAX_DIM_VALUES):
+        if (not _PLAIN.fullmatch(value) or looks_like_credential(value)
+                or (value and value not in known[d] and len(known[d]) >= MAX_DIM_VALUES)):
             value = OTHER
         out.append(value)
     combo = tuple(out)

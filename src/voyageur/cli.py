@@ -52,7 +52,10 @@ RETENTION_HELP = """data retention (environment variables, each adjustable):
   HEAL_OVERLAY_RETENTION_DAYS   days the marked screenshot of a vision heal is kept (default 7; 0 stores no image). The heal
                                 record stays and says its image expired
   HEAL_MAX_DB_MB                size cap of the store in megabytes (default 0: no cap). Over it, the oldest images go first, then
-                                the oldest heal records (counted first)
+                                the oldest heal records (counted first), then cached decisions; a younger record goes only if that
+                                can reach the cap
+  HEAL_ROLLUP_DETAIL_DAYS       days a rollup day keeps its repo, framework and client language (default 90, at least 1); older days
+                                are folded into totals, which read the same
 """
 
 

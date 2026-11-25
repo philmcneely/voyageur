@@ -45,7 +45,13 @@ Features:
     ✓ Totals outlive the records: the counts of heals purged after HEAL_RETENTION_DAYS (rollup.py) are added to every sum, count
       and rate, by-model rows and breakdowns included, and `archive` says how many heals that is. Computed from the records still
       kept, because they are not sums: locators_fixed, hot_spots, runs, latency (`archive.retained_only`). A run filter, or a
-      filter on anything the rollup does not keep (outcome, file), reads the records kept and `archive.included` is false
+      filter on anything the rollup does not keep (outcome, file), reads the records kept and `archive.included` is false (so is
+      it with retention 0, which keeps no archive)
+    ✓ One instant: the records and the archive are read in one store snapshot, so a purge cannot move a heal from one to the other
+      between the reads and count it twice
+    ✓ Windows: a rollup day cannot be split, so an archived day counts only when the whole of it is inside the window; the days the
+      window cuts are listed in `archive.edge_days` and `archive.edge_rule` says so. Days older than HEAL_ROLLUP_DETAIL_DAYS
+      keep no repo, framework or client language: `archive.folded_before` is where those filters and the framework breakdown start
     ✓ `diagnose`: requests, answers by status, causes and confidences, edits suggested, heals advised to revert, answers the service
       downgraded, model calls and tokens; each with a drill link, and none of them in a heal rate
     ✓ `drill`: for each number, the query string for GET /v1/heals that lists the heals behind it
@@ -67,18 +73,26 @@ from .rollup import CLOSED_PR_STATES, RETAINED_ONLY, Key
 from .store import BAD_PR_STATES, DURABLE_DAYS, DURABLE_RUNS, MAX_AGG_ROWS, Store
 
 MAX_RUNS = 30
+# what `archive` says about a window: a rollup day cannot be split, so the archive counts the days wholly inside the window
+EDGE_RULE = ("a rolled-up day counts only when the whole of it (UTC) is inside the window; a day the window cuts is left out and "
+             "listed in edge_days. Days before folded_before keep no repo, framework or client language, so a filter on one of "
+             "them, and the framework breakdown, read from that day on")
 
 
 class _Archive:
     """The counters of heals purged since (store.rollup_counts), for the same filters and window as the live read. It answers
     for the filters a rollup row keeps (repo, framework, language, page language, model); with any other filter set (a run, an
-    outcome, a file) it holds nothing and `info()` says it was not included."""
+    outcome, a file), or with retention 0 (no archive is kept), it holds nothing and `info()` says it was not included. Everything
+    it reads is read in its constructor, so a caller that builds it inside store.snapshot() has one instant. In a window only the
+    days wholly inside it count; `info()["edge_days"]` names the days the window cuts."""
 
     def __init__(self, store: Store, since: Optional[float], until: Optional[float], filters: Dict[str, Any]):
         self.store, self.since, self.until, self.filters = store, since, until, filters
-        self.by_dimension: Dict[str, Dict[str, int]] = {}
-        self.included = store.rollup_answers(filters)
+        self.included = store.retention_days > 0 and store.rollup_answers(filters)
         self.counts: Mapping[Key, int] = store.rollup_counts(since, until, **filters) if self.included else {}
+        self.by_dimension: Dict[str, Dict[str, int]] = {"framework": self._dimension("framework")}
+        self.span = store.rollup_info()
+        self.edges = store.rollup_edge_days(since, until, **filters) if self.included else []
 
     def a(self, metric: str, k1: Any = "", k2: Any = "", k3: Any = "") -> int:
         """One counter (0 when the archive holds none)."""
@@ -106,7 +120,7 @@ class _Archive:
     def counter_by_dimension(self, dimension: str, live: "Counter[Any]") -> "Counter[Any]":
         """`live` plus the archived heals by the value of a dimension the rollup keeps (a free-text name is never a counter key)."""
         out: "Counter[Any]" = Counter(live)
-        for name, n in self.by_dimension.get(dimension, self._dimension(dimension)).items():
+        for name, n in self.by_dimension[dimension].items():             # read in the constructor: only framework is
             out[name] += n
         return out
 
@@ -116,9 +130,9 @@ class _Archive:
     def info(self) -> Dict[str, Any]:
         """What the archive holds, for the answer: how many purged heals it counted, the span they cover, and the figures that
         are computed from the records still kept because they are not sums."""
-        span = self.store.rollup_info()
-        return {"included": self.included, "heals": self.a("archived"), "from": span["from"], "through": span["through"],
-                "retained_only": list(RETAINED_ONLY)}
+        return {"included": self.included, "heals": self.a("archived"), "from": self.span["from"], "through": self.span["through"],
+                "retained_only": list(RETAINED_ONLY), "detail_days": self.store.rollup_detail_days,
+                "folded_before": self.span["folded_before"], "edge_days": self.edges, "edge_rule": EDGE_RULE}
 
 
 def _ratio(n: float, d: float) -> Optional[float]:
@@ -149,16 +163,18 @@ def aggregate(store: Store, prices: Optional[Mapping[str, Tuple[float, float]]] 
     """The aggregates for the heals matching `filters` (repo, framework, language, page_language, run_id) in the window.
     At most the newest `max_rows` heals are read (and their calls and tries); `truncated` says when more matched."""
     prices = prices or {}
-    every = store.heals_in(since, until, max_rows=max_rows, **filters)
+    store.purge_if_due()                                   # before the reads, never between them (a purge would move heals to the rollup)
+    with store.snapshot():                                 # the records and the rollup are read at one instant: no heal counted twice
+        every = store.heals_in(since, until, max_rows=max_rows, **filters)
+        all_calls = store.calls_in(since, until, max_rows=max_rows, **filters)
+        tries = store.tries_in(since, until, max_rows=max_rows, **filters)
+        A = _Archive(store, since, until, filters)         # the counts of heals purged since, added to every total below
     advice = [h for h in every if (h.get("mode") or "heal") == "advise"]
     diagnoses = [h for h in every if h.get("mode") == "diagnose"]
     heals = [h for h in every if (h.get("mode") or "heal") not in ("advise", "diagnose")]
-    all_calls = store.calls_in(since, until, max_rows=max_rows, **filters)
     calls = [c for c in all_calls if c["mode"] not in ("advise", "diagnose")]
-    tries = store.tries_in(since, until, max_rows=max_rows, **filters)
     apart = {h["heal_id"] for h in advice + diagnoses}
     tries = [t for t in tries if t["heal_id"] not in apart]
-    A = _Archive(store, since, until, filters)             # the counts of heals purged since, added to every total below
     healed = [h for h in heals if h["outcome"] == "healed"]
     human = [h for h in heals if h["outcome"] == "needs_human"]
     drift = sum(1 for h in heals if h["drift"]) + A.a("drift")

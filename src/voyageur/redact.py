@@ -22,6 +22,10 @@ Features:
       children go too: everything under a textbox or searchbox bar `- /property` lines, `text` and `/value` under
       the other value roles, and block-scalar continuations. /placeholder and combobox options stay. Ported from the
       same rule set measured against Playwright 1.58's real snapshot output; one left-to-right pass, no regex
+    ✓ looks_like_credential(text): whether a name is shaped like a token (a known prefix with a long tail: GitHub, GitLab, OpenAI-style,
+      Stripe, Hugging Face, Slack, AWS, Google, a JWT; or a run of 32 or more letters and digits that is mixed-case with a digit, a
+      hex digest, or flips between digits and letters often). It is a shape test, not a secret scanner: a base64url token cut into
+      pieces by - or _ is not caught. A name is stored by the rollup only when this says no
     ✓ Linear time on hostile text: input is capped before it is scanned and every pattern is anchored and bounded
 
 Environment Variables:
@@ -46,11 +50,37 @@ _AUTH_RE = re.compile(r"\b(bearer|basic)\s+[^\r\n]*", re.I)
 _HEADER_RE = re.compile(r"(Illegal header (?:value|name))\b[^\r\n]*", re.I)
 _SECRETS: "OrderedDict[str, None]" = OrderedDict()      # insertion-ordered set, bounded by MAX_REGISTERED_SECRETS
 
+# A token a service issues starts with a fixed prefix and a long tail; the tail lengths are the ones tests/unit/test_source_hygiene.py
+# already treats as a key. The prefix must start a word, so "task-management-dashboard" is not an "sk-" key.
+# The "sk-" and "glpat-" tails must hold a digit (a real key does; "sk-learn-extra-long-experiment-name" is a name).
+_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])(?:sk-(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}"
+                       r"|github_pat_[A-Za-z0-9_]{20,}|glpat-(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{20,}|xox[a-z]-[A-Za-z0-9-]{10,}"
+                       r"|(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{16,}|hf_[A-Za-z0-9]{30,}|AKIA[A-Z0-9]{12,}|AIza[A-Za-z0-9_-]{30,}"
+                       r"|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})")
+_RUN_RE = re.compile(r"[A-Za-z0-9]{32,}")                    # a run split on - _ . / and space: a base64url token with those is not caught
+
 
 def redact_urls(text: str) -> str:
     """Keep scheme://host of every URL in an error text; drop userinfo, path and query (where a token may sit). The
     scheme is anchored and bounded and the input capped, so hostile error text costs linear time."""
     return _URL_RE.sub(r"\1\2/…", text[:SCRUB_INPUT_CHARS])
+
+
+def looks_like_credential(text: str) -> bool:
+    """Whether `text` is shaped like a token: one of the known prefixes with a long tail, or a run of 32 or more letters and digits
+    that is a hex digest, mixes upper and lower case with a digit or flips between digits and letters six times (what a random key
+    looks like; a project name is words). Linear
+    time: every pattern is anchored on a fixed prefix or a character class, and the input is capped."""
+    text = text[:SCRUB_INPUT_CHARS]
+    if _TOKEN_RE.search(text):
+        return True
+    for run in _RUN_RE.findall(text):
+        if not any(c.isdigit() for c in run):
+            continue
+        flips = sum(1 for a, b in zip(run, run[1:]) if a.isdigit() != b.isdigit())          # digit-letter boundaries: a random run has many
+        if (any(c.islower() for c in run) and any(c.isupper() for c in run)) or flips >= 6 or all(c in "0123456789abcdefABCDEF" for c in run):
+            return True
+    return False
 
 
 def register_secret(secret: Optional[str]) -> None:

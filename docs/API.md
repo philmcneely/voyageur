@@ -36,6 +36,7 @@ No token. `{"ok": true, "version": "0.1.0"}`.
   "retention_days": 31,
   "overlay_retention_days": 7,
   "max_db_mb": 0,
+  "rollup_detail_days": 90,
   "languages": ["python", "typescript"],
   "diagnose": {"enabled": false},
   "library_classes": []
@@ -52,9 +53,9 @@ No endpoint URL and no key is ever returned; `local` says whether the model endp
 `HEAL_RETENTION_DAYS` is 30 or less (the default is 31), because a heal is purged before it can live 30 days. The service logs one warning
 at startup in that case, and the dashboard's Durability tile says so instead of showing a percentage.
 
-`retention_days`, `overlay_retention_days` and `max_db_mb` are the three data limits the operator set (`HEAL_RETENTION_DAYS`,
-`HEAL_OVERLAY_RETENTION_DAYS`, `HEAL_MAX_DB_MB`): how long a heal record and its marked image are kept, and the optional size cap of the
-store (`0` is no cap). See [What is kept](../README.md#what-is-kept-and-for-how-long).
+`retention_days`, `overlay_retention_days`, `max_db_mb` and `rollup_detail_days` are the data limits the operator set (`HEAL_RETENTION_DAYS`,
+`HEAL_OVERLAY_RETENTION_DAYS`, `HEAL_MAX_DB_MB`, `HEAL_ROLLUP_DETAIL_DAYS`): how long a heal record and its marked image are kept, the optional size
+cap of the store (`0` is no cap) and how long a rollup day keeps its repo, framework and client language. See [What is kept](../README.md#what-is-kept-and-for-how-long).
 
 ### Configuration: `HEAL_LIBRARY_CLASSES`
 
@@ -324,11 +325,18 @@ to divide by is `null`. Each definition is in `src/voyageur/metrics.py`.
 and every total, rate, breakdown and by-model row below adds those counts, so a number does not drop on the day its heals expire. The
 rollup holds counts under a fixed counter name with the day, repo, framework, client language and page language: no file contents, page
 text, locator, test name, path, run id, error text or model reply. `archive` says what it holds: `{"included": true, "heals": 120, "from":
-<epoch>, "through": <epoch>, "retained_only": ["locators_fixed", "hot_spots", "runs", "latency"]}`. Those four are computed from the records
-still kept because they are not sums. A drill link opens only the heals still kept. Durability is counted at the moment a heal is purged
+<epoch>, "through": <epoch>, "retained_only": ["locators_fixed", "hot_spots", "runs", "latency"], "detail_days": 90, "folded_before": <epoch>,
+"edge_days": [], "edge_rule": "..."}`. Those four are computed from the records
+still kept because they are not sums. With `HEAL_RETENTION_DAYS=0` there is no archive: `included` is `false` and `heals` is 0. A drill link opens only the heals still kept. Durability is counted at the moment a heal is purged
 (eligible, held, broke again, pending) and cannot be recomputed after. The rollup answers to the filters `repo`, `framework`, `language`,
-`page_language`, `model` and `from` / `to` (by UTC day: a day is in the window when any of it is); a `run` filter reads the records kept
-only and `archive.included` is then `false`. See [What is kept](../README.md#what-is-kept-and-for-how-long).
+`page_language`, `model` and `from` / `to`; a `run` filter reads the records kept
+only and `archive.included` is then `false`. **A window counts whole days of the archive.** A rolled-up day cannot be split, so it counts only when
+the whole of it (UTC) is inside `from` / `to`; a day the window cuts is left out of every archived number and listed in `archive.edge_days`
+(`[{"from": <epoch>, "through": <epoch>, "heals": n}]`, at most the first and last day, empty when the window sits on day boundaries or there is
+none), so the archive can undercount a window by those days but never overcount it; `archive.edge_rule` says so in words. Days older than
+`HEAL_ROLLUP_DETAIL_DAYS` have lost their repo, framework and client language: totals and every other breakdown still include them, a
+`repo`, `framework` or `language` filter and the `framework` breakdown cover the days from `archive.folded_before` on.
+The records and the archive of one answer are read at one instant, so a purge cannot count a heal in both. See [What is kept](../README.md#what-is-kept-and-for-how-long).
 
 | Spec number | Keys |
 | --- | --- |

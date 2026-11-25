@@ -28,7 +28,12 @@ Environment Variables:
                              HEAL_RETENTION_DAYS
     HEAL_MAX_DB_MB           size cap of the audit store in megabytes (default 0 = no cap). Above it the oldest images are deleted
                              first, then the oldest heal records (counted into the rollup first), those past the 30-day durability
-                             window before any younger one; a younger one is logged as a warning
+                             window before any younger one; a younger one is logged as a warning. Cached decisions go before a
+                             younger record, and no record is deleted when that cannot reach the cap (logged once, with why)
+    HEAL_ROLLUP_DETAIL_DAYS  days a rollup day keeps its repo, framework and client language (default 90, at least 1). An older
+                             day is folded into rows without them (every counter, the model scope and the page language stay), so
+                             the rollup stops growing with the names clients choose; totals read the same, and a filter on repo,
+                             framework or client language covers the detail period only
     HEAL_RUN_TOKEN_BUDGET    model tokens one run may spend before the rest of its failures go to a human (unset = none)
     HEAL_CANDIDATE_CAP       lines in the pick list (default 30)
     HEAL_MAX_CALLS           model calls per heal (default 2)
@@ -172,6 +177,7 @@ _SETTINGS = (
     _v("retention_days", "HEAL_RETENTION_DAYS", _integer(0)),
     _v("overlay_retention_days", "HEAL_OVERLAY_RETENTION_DAYS", _integer(0)),
     _v("max_db_mb", "HEAL_MAX_DB_MB", _integer(0)),
+    _v("rollup_detail_days", "HEAL_ROLLUP_DETAIL_DAYS", _integer(1)),
     _v("run_token_budget", "HEAL_RUN_TOKEN_BUDGET", _integer(1)),
     _v("candidate_cap", "HEAL_CANDIDATE_CAP", _integer(1)),
     _v("max_calls", "HEAL_MAX_CALLS", _integer(1)),
@@ -193,6 +199,7 @@ class ServiceSettings:
     retention_days: int = 31          # heal records; the least that lets durability (30 days) be measured
     overlay_retention_days: int = 7   # the marked screenshot of a vision heal (about 44 KB each, 97 percent of a store)
     max_db_mb: int = 0                # size cap of the store in megabytes; 0 is no cap
+    rollup_detail_days: int = 90      # a rollup day older than this loses its repo, framework and client language (totals are kept)
     run_token_budget: Optional[int] = None
     candidate_cap: int = 30
     max_calls: int = 2

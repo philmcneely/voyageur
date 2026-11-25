@@ -143,10 +143,17 @@ not the service its availability.
 An open conversation keeps only what a result round needs (not the request), at most 500 are held, and one the client
 has not answered for `HEAL_OPEN_TTL_S` seconds (default 900) is closed with the reason `open_expired`. Stored records
 are purged by age (`HEAL_RETENTION_DAYS`, 31 by default) on every read as well as on every new heal; marked images go sooner
-(`HEAL_OVERLAY_RETENTION_DAYS`, 7), and `HEAL_MAX_DB_MB` (off by default) bounds the store's size, oldest images first. Before a heal is
-purged its counts are added to a daily rollup that is kept for good: counts under fixed counter names with the repo, framework and
-language, and no file contents, page text, locator, test name, path, run id or model reply. With `HEAL_RETENTION_DAYS=0` nothing is
-kept, rolled up or counted. `/v1/metrics` reads at most the newest 20000 heals and says `truncated` when more matched.
+(`HEAL_OVERLAY_RETENTION_DAYS`, 7), and `HEAL_MAX_DB_MB` (off by default) bounds the store's size, oldest images first, then old records, then
+cached decisions, and never deletes a young record when that cannot reach the cap. Before a heal is
+purged its counts are added to a daily rollup that is kept for good as totals: counts under fixed counter names with the repo, framework and
+language, and no file contents, page text, locator, test name, path, run id or model reply. The repo and framework are names the client
+chose, so each is cut to 100 characters, and a name with `@ : ? # =` or a control character, or shaped like a token (a GitHub, GitLab,
+OpenAI-style, Stripe, Hugging Face, Slack, AWS or Google key prefix with its tail, a JWT, a long mixed-case run, a hex digest or a run that flips between
+digits and letters), is stored as `other`; that is the whole filter, a shape test, so a
+secret in an ordinary-looking name is stored. After `HEAL_ROLLUP_DETAIL_DAYS` (90) a day loses its repo, framework and client language and
+only the counts remain. With `HEAL_RETENTION_DAYS=0` nothing is
+kept, rolled up or counted, and a store opened with it deletes the rollup, the cached decisions and the images an earlier setting left and rewrites the
+file so the deleted bytes are gone. A purge logs a failing step by name and error class, a heal it cannot count by id, and never the content of a row. `/v1/metrics` reads at most the newest 20000 heals and says `truncated` when more matched.
 
 ## The dashboard
 

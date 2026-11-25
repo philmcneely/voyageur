@@ -44,12 +44,12 @@ def test_the_document_lists_every_api_route_with_bodies_examples_and_the_bearer_
     doc = client().get("/openapi.json").json()
     paths = doc["paths"]
     for path in ("/healthz", "/v1/capabilities", "/v1/heal", "/v1/heals/{heal_id}/result", "/v1/heals/{heal_id}",
-                 "/v1/heals", "/v1/metrics", "/v1/heals/{heal_id}/followup", "/v1/audit", "/v1/diagnose"):
+                 "/v1/heals", "/v1/metrics", "/v1/heals/{heal_id}/followup", "/v1/audit", "/v1/overlay", "/v1/diagnose"):
         assert path in paths, path
     assert "/dashboard" not in paths and "/docs" not in paths and "/openapi.json" not in paths
     assert doc["components"]["securitySchemes"]["bearer"]["scheme"] == "bearer"
     assert "security" not in paths["/healthz"]["get"] and paths["/v1/heal"]["post"]["security"] == [{"bearer": []}]
-    for path in ("/v1/heal", "/v1/heals/{heal_id}/result", "/v1/heals/{heal_id}/followup", "/v1/audit", "/v1/diagnose"):
+    for path in ("/v1/heal", "/v1/heals/{heal_id}/result", "/v1/heals/{heal_id}/followup", "/v1/audit", "/v1/overlay", "/v1/diagnose"):
         body = paths[path]["post"]["requestBody"]["content"]["application/json"]
         name = body["schema"]["$ref"].rsplit("/", 1)[1]
         assert name in doc["components"]["schemas"] and body["examples"], path

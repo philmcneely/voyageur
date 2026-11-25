@@ -213,8 +213,21 @@ element (with the language plan from `stages.plan_for`) and answers `advised` wi
 gates, the run budget and the decision cache apply unchanged, and a pick a gate refuses is `needs_human`. `audit.run_audit` is the same
 `write()` run over the locators already in the files: it reports a locator's tier and uniqueness from the inventory and the locator a heal
 would have written for the same element, and runs under the request deadline in a worker like any client-text stage. `mcp_server.py` is a
-thin shell: its two tool functions call `parse_request` / `parse_audit_request` (the HTTP routes' own validation) and then `core.start` (advise
+thin shell: its tool functions call `parse_request` / `parse_audit_request` (the HTTP routes' own validation) and then `core.start` (advise
 forced) or `core.audit`.
+
+## Overlay (`marks.py`, `overlay.render_marks`)
+
+`POST /v1/overlay` is a side door like audit, deliberately its own route: a heal's overlay is a step of the ladder that feeds a model and is kept with the
+record, while this one is made on request, shown to a person and kept nowhere, so it shares the drawing code and nothing of the ladder.
+`marks.run_overlay` resolves each locator the request names with the matcher an audit uses (`audit._hits`), or, with none named, takes every listed element that is not
+hidden and is on the picture (`overlay.visible_boxes`, from the PNG header alone) and asks `stages.write_for` for the locator a heal would write, the same
+candidates, uniqueness proof and stability ranking. It then hands marks (a number, a box, the label text) to `overlay.render_marks`, which decodes the screenshot once, scales it
+to at most 1600 px, draws every outline (biggest first, colors chosen so overlapping boxes differ) and then every tab (placed so tabs do not cover each other), from
+the same built-in bitmap as the digits, extended to printable ASCII, with no font file. `HealSession.overlay` runs it in the worker pool under the request deadline in one of the audit's
+slots (so a heal always gets a worker) and counts `voyageur_overlays_total`; it never touches the store or a model. The route answers JSON (the PNG as base64 shaped like a
+request's screenshot, the legend, a summary) rather than a bare PNG because a caller needs both; the MCP tool `overlay_locators` returns the picture as an image block and the
+rest as text. See [SECURITY.md](SECURITY.md#overlays) for why it is not gated on the vision settings.
 
 ## Diagnose
 
@@ -271,9 +284,9 @@ rate. Records older than `HEAL_RETENTION_DAYS` are purged. Open conversations ar
 | Area | Modules |
 | --- | --- |
 | API and CLI | `app.py`, `cli.py`, `schemas.py`, `config.py`, `export.py` (CSV), `telemetry.py` (`/metrics`), `dashboard.py` and `dashboard/dashboard.html` |
-| Other ways in | `mcp_server.py` (MCP tools), `audit.py` (`/v1/audit`), advise mode in `core.py` |
+| Other ways in | `mcp_server.py` (MCP tools), `audit.py` (`/v1/audit`), `marks.py` (`/v1/overlay`), advise mode in `core.py` |
 | Core | `core.py` (the session), `triage.py`, `match.py`, `pick.py`, `vision.py`, `gates.py`, `proof.py`, `frames.py`, `frame_heal.py`, `branches.py` |
-| Image | `screenshot.py` (checks), `overlay.py` (marks, crop, scale) |
+| Image | `screenshot.py` (checks), `overlay.py` (marks, crop, scale, locator text, colors) |
 | Locators | `locators.py`, `locator_steps.py`, `locator_policy.py`, `uniqueness.py`, `inventory.py`, `elements.py`, `element_facts.py`, `failing.py` |
 | Model | `llm.py`, `transport.py`, `netpolicy.py`, `redact.py` |
 | Record | `store.py`, `metrics.py` |

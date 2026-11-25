@@ -1,6 +1,7 @@
 """Browser (gated on Playwright and a chromium build): the overlay's marks land on the elements a real page shows. The probe's boxes
 are in document coordinates, a viewport screenshot is taken at the page's scroll and device pixel ratio, and the overlay has to put
 each mark where the element really is, at dpr 1 and 2, scrolled or not. Skipped when Playwright or its browser is not installed."""
+import base64
 import io
 from pathlib import Path
 
@@ -68,6 +69,92 @@ def test_marks_land_on_the_elements_of_a_scrolled_page(browser, dpr):
         assert image.getpixel((left, mid_y)) == _PALETTE[(number - 1) % len(_PALETTE)], (name, number)   # the outline
         inner = (left + round(w * dpr * 0.85), mid_y)                    # clear of the button's own letter
         assert image.getpixel(inner) == FILL[name], (name, "the page's own pixels show inside the mark")
+
+
+def overlay_request(png, items, view, **over):
+    return {"client": {"framework": "x", "language": "python"},
+            "page": {"url": "http://app.example/", "inventory": items,
+                     "viewport": {"w": view["w"], "h": view["h"], "dpr": view["dpr"], "scroll": {"x": view["sx"], "y": view["sy"]}},
+                     "screenshot": {"media_type": "image/png", "data": base64.b64encode(png).decode(),
+                                    "width": view["w"] * view["dpr"], "height": view["h"] * view["dpr"]}}, **over}
+
+
+@pytest.mark.parametrize("dpr", [1, 2])
+def test_the_overlay_endpoint_marks_the_locators_a_real_scrolled_page_holds(browser, dpr):
+    from fastapi.testclient import TestClient
+    from voyageur.app import create_app
+    from tests.unit.scenarios import JSON, FakeModel, session
+    png, items, view = shot_and_probe(browser, dpr, 1000)
+    c = TestClient(create_app(session(FakeModel()), None), base_url="http://127.0.0.1", headers=JSON)
+    locators = ["page.locator('#a')", "page.locator('#top')", "page.locator('#b')", "page.locator('#c')", "page.locator('#d')"]
+    r = c.post("/v1/overlay", json=overlay_request(png, items, view, locators=locators))
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert [e["status"] for e in out["legend"]] == ["matched", "not_visible", "matched", "matched", "matched"]
+    image = Image.open(io.BytesIO(base64.b64decode(out["image"]["data"]))).convert("RGB")
+    assert image.size == (400 * dpr, 300 * dpr)                        # the whole viewport, no crop
+    boxes = {i["id"]: i["box"] for i in items}
+    for number, name in ((1, "a"), (3, "b"), (4, "c"), (5, "d")):
+        b = boxes[name]
+        left, top = round((b["x"] - view["sx"]) * dpr), round((b["y"] - view["sy"]) * dpr)
+        mid_y = top + round(b["height"] * dpr / 2)
+        assert image.getpixel((left, mid_y)) == _PALETTE[(number - 1) % len(_PALETTE)], (name, number)
+        assert image.getpixel((left + round(b["width"] * dpr * 0.85), mid_y)) == FILL[name], (name, "the page shows inside the mark")
+    every = c.post("/v1/overlay", json=overlay_request(png, items, view, options={"labels": "locators"})).json()
+    assert [e["ref"] for e in every["legend"]] == [f"e{n}" for n, i in enumerate(items) if i["id"] != "top"]       # the service numbers entries the probe left no ref on
+    assert {e["label"] for e in every["legend"]} == {'page.locator("#a")', 'page.locator("#b")', 'page.locator("#c")', 'page.locator("#d")'}
+    assert every["summary"]["not_visible"] == 1                         # the button above the viewport
+
+
+TEXT_PAGE = """<!doctype html><html lang="en"><body style="margin:0;background:#ffffff;font:14px sans-serif">
+<section role="region" aria-label="Account" style="position:absolute;left:10px;top:10px;width:380px;height:280px;border:1px solid #888">
+<h1 style="position:absolute;left:10px;top:8px;margin:0;font-size:20px">Welcome back</h1>
+<label for="u" style="position:absolute;left:10px;top:50px">Username</label>
+<input id="u" data-testid="user" style="position:absolute;left:10px;top:70px;width:200px;height:24px">
+<p role="status" style="position:absolute;left:10px;top:110px;margin:0">Your session has expired</p>
+<a href="#x" style="position:absolute;left:10px;top:140px">Forgot password?</a>
+<button id="go" style="position:absolute;left:10px;top:180px;width:100px;height:30px">Sign in</button>
+</section></body></html>"""
+
+
+def test_the_overlay_endpoint_marks_every_element_a_test_could_assert_on_in_a_real_page(browser):
+    from fastapi.testclient import TestClient
+    from voyageur.app import create_app
+    from tests.unit.scenarios import JSON, FakeModel, session
+    page = browser.new_page(viewport={"width": 400, "height": 300}, device_scale_factor=1)
+    try:
+        page.set_content(TEXT_PAGE)
+        data = page.evaluate(PROBE)
+        aria = page.locator("body").aria_snapshot()
+        png = page.screenshot(type="png")
+    finally:
+        page.close()
+    req = {"client": {"framework": "x", "language": "python"},
+           "page": {"url": "http://app.example/", "inventory": data["items"], "inventory_more": data["more"],
+                    "inventory_copy_more": data["copy_more"], "inventory_copy_withheld": data["copy_withheld"],
+                    "inventory_copy_withheld_data": data["copy_withheld_data"], "aria_snapshot": aria,
+                    "viewport": {"w": 400, "h": 300, "dpr": 1, "scroll": {"x": 0, "y": 0}},
+                    "screenshot": {"media_type": "image/png", "data": base64.b64encode(png).decode(), "width": 400, "height": 300}},
+           "options": {"labels": "locators"}}
+    c = TestClient(create_app(session(FakeModel()), None), base_url="http://127.0.0.1", headers=JSON)
+    r = c.post("/v1/overlay", json=req)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    kinds = {e["element_kind"] for e in out["legend"]}
+    assert kinds == {"interactive", "text"}, [(e["element_kind"], e["locator"]) for e in out["legend"]]
+    texts = [e["locator"] for e in out["legend"] if e["element_kind"] == "text"]
+    assert any("Welcome back" in (t or "") for t in texts) and any("session has expired" in (t or "") for t in texts)
+    assert any("Account" in (t or "") for t in texts), texts                      # the named section
+    assert any((e["locator"] or "").startswith("page.get_by_test_id") for e in out["legend"])
+    assert all(e["status"] == "matched" for e in out["legend"] if e["element_kind"] == "text" and e["locator"])
+    assert out["summary"]["marked"] == len(out["legend"]) >= 6
+    only = c.post("/v1/overlay", json={**req, "options": {"kinds": ["text"]}}).json()
+    assert {e["element_kind"] for e in only["legend"]} == {"text"}
+    image = Image.open(io.BytesIO(base64.b64decode(out["image"]["data"]))).convert("RGB")
+    section = next(e for e in out["legend"] if "Account" in (e["locator"] or ""))
+    field = next(e for e in out["legend"] if (e["locator"] or "").startswith("page.get_by_test_id"))
+    assert section["color"] != field["color"]                                      # a section and the input inside it
+    assert image.getpixel((11, 150)) == tuple(int(section["color"][i:i + 2], 16) for i in (1, 3, 5))      # the section's left edge
 
 
 def test_unscrolled_the_same_marks_would_be_somewhere_else(browser):

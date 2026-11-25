@@ -91,6 +91,31 @@ the same bearer token as every other route (`GET /v1/heals/{id}/overlay.png`, `C
 heal by `HEAL_RETENTION_DAYS`, and with `0` it is not stored at all. The client's original screenshot is never stored: it is held in
 memory only while an open conversation may still need a vision call (at most 64 MB in all) and dropped after.
 
+## Overlays
+
+`POST /v1/overlay` (and the `overlay_locators` MCP tool) marks locators on a screenshot and answers with the marked picture and a legend. It is a separate route, not
+an option of `/v1/audit` or `/v1/heal`, so what it may and may not do is stated once:
+
+- **No model call, ever.** The code path has no model client: the picture is drawn in the service's own worker and returned to the caller that sent it. Nothing is
+  sent to any endpoint, so the screenshot rules that exist to control egress do not apply, and the route is **not gated on `HEAL_VISION_IMAGES_ALLOWED`** (nor on a configured
+  vision model, nor on `options.vision`, which the request does not have). That setting decides whether an image may be *sent to a model*; an overlay sends none. The
+  "off means off" rule above is about the same thing and is not weakened: a heal request with vision off and a screenshot is still a 422.
+- **The same door.** The screenshot goes through every layer of [Screenshots](#screenshots) before a pixel is decoded: 4 MB decoded (413), strict base64, PNG read from the
+  bytes, a side of at most 8192 px and at most 16 million pixels from the header, dimensions equal to the claim, CRC check. The body limit (10 MB), the 413 / 422 rules, the
+  refusal of `value`, cookie and storage keys, the removal of typed text from the aria snapshot and the bearer token are those of every other `/v1` route.
+- **Nothing is kept.** No heal record, no overlay row (`overlays` holds a heal's vision overlay only), no cache, no log of the image or of a locator; the counter
+  `voyageur_overlays_total` counts requests and nothing else. The answer carries `Cache-Control: private, no-store`. With `HEAL_RETENTION_DAYS=0` nothing changes.
+- **Killable and bounded.** Decoding, matching and drawing run in the worker pool under the request deadline (a worker that outlives it is killed: 504; one that dies is a 503), in one
+  of the audit's slots (429 when taken, so a heal always gets a worker). At most 100 locators of 4000 characters, 50 boxes per locator, 500 inventory entries; the picture is
+  downscaled to at most 1600 px on its long side.
+- **Drawn text is untrusted, and bounded.** The only text ever drawn is a locator, from the built-in bitmap (no font file, no font parser). It is cleaned first: ASCII control
+  characters removed, any other character drawn as `?` (a right-to-left override or a look-alike letter cannot be drawn), cut to 48 characters and to the picture's width. A locator the
+  caller sent is the caller's own text. A locator the service wrote can hold page copy (`get_by_text("...")`, a role name), and that copy is drawn on the picture: the legend marks it
+  `copy_based`. A caller that shows the picture to a model (the MCP tool returns it as an image) is showing it page text, which is data and never an instruction. The service
+  itself reads nothing back from the picture.
+- **Image decoding.** Pillow opens PNG only (`formats=["PNG"]`) and any failure while decoding is a 422 with the reason `undecodable`, never an echo of the bytes. A picture whose shape does
+  not match its viewport (3 percent) makes no overlay.
+
 ## Resource limits
 
 Every input is bounded before it is scanned, and an input over a limit is refused or marked, never silently truncated.
@@ -102,6 +127,7 @@ Every input is bounded before it is scanned, and an input over a limit is refuse
 | inventory | 500 entries; a field is at most 400 characters | the field is dropped and the inventory is marked incomplete |
 | aria snapshot | 256 KB, 8 KB per line | 413 |
 | screenshot | 4 MB decoded; 8192 px a side; 16 million pixels | 413 over 4 MB; 422 otherwise |
+| overlay locators | 100 locators, 4000 characters each; 50 boxes drawn per locator; drawn text 48 characters | 413 over 100; 422 over 4000 characters |
 | error text | 64 KB in total, 8 KB per line | 422 |
 | a locator expression | 4000 characters | "cannot evaluate" |
 | a regular expression | RE2 only; pattern over 1000 characters, repeat-bound product over 100, text over 4096 characters, or a work budget over 1,000,000 characters | "unknown": no uniqueness claim is made; never truncated |
@@ -138,6 +164,7 @@ data and no secret. Everything it shows comes from `/v1/metrics`, `/v1/heals` an
 
 - `POST /v1/audit` and the MCP tools take the same bodies under the same limits, refusals and redaction as `POST /v1/heal`; the audit runs in the
   killable worker pool under the per-request deadline and reports at most 500 locators.
+- `POST /v1/overlay` and `overlay_locators` take the same limits and refusals and run in the same pool and slots; see [Overlays](#overlays) for what they never do.
 - `heal_locator` (MCP) forces advise mode: it can never open a conversation or return a patch. A stdio MCP server has no bearer token because only
   the process that launched it can reach it; it keeps its record in `HEAL_DB` like `serve`.
 - `POST /v1/heals/{id}/followup` takes a fixed set of PR states and two bounded integers, and only for a heal that ended `healed`.

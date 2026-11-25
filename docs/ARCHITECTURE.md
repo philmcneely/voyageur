@@ -100,8 +100,12 @@ The ladder is climbed from the cheapest step; the first step that settles the qu
    language: on a page whose language differs from the passing run it goes through step 6 (a branch per language, the old copy from the
    broken call or the recording, else `language_branch_unavailable`). When neither proof is possible the element has no locator and
    `WriteResult.gap` / `why` (the overlay legend's `reason` / `why`, a heal's `why`) say which: `aria_snapshot_missing`,
-   `aria_snapshot_unusable`, `copy_counts_missing`, `listing_incomplete`, `copy_not_unique`, `not_matched`, `unprovable`, or `nothing_stable`
-   (no copy and no stable attribute). A reason names no page copy.
+   `aria_snapshot_unusable`, `copy_counts_missing`, `listing_incomplete`, `copy_maybe_cut`, `copy_not_unique`, `not_matched`, `unprovable`,
+   or `nothing_stable` (no copy and no stable attribute). A reason names no page copy. `copy_maybe_cut`: the probe cuts a `text` or `name`
+   at 80 characters (UTF-16 units; a `label`, `aria_label`, `title` or `alt` at 80, a `placeholder` at 200), so a value that long may be the
+   head of longer copy and an exact match on it would be a guess; the listing cannot count it (`Inventory.cut_copy`), and only
+   `page.aria_snapshot`, which holds the whole copy, can (it then counts 0 for the head, or 1 for copy that really ends there). The
+   probe's own `text_cut` / `name_cut` is believed when it is sent; for a client that sends neither, the length is read.
    **Row scope** (`row_scope.py`): when none of the element's own locators is unique on the page (a `data-qa=status` badge in
    every order row), the probe's `row` and `row_attr` name the nearest ancestor with a test hook. The writer then looks for a
    locator unique among that row's elements (those inside the row's box, those whose nearest hook is the row, and, followed

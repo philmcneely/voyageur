@@ -762,6 +762,8 @@ PROOF_GAPS = {
                            "inventory_copy_withheld_data), which the request does not carry",
     "listing_incomplete": "the inventory does not hold all the page's copy (it is cut, or the probe left copy out), so its text "
                           "cannot be shown unique",
+    "copy_maybe_cut": "its copy is as long as the probe lists, so it may be the start of longer copy, and an exact match on it is shown "
+                      "only by page.aria_snapshot, which holds the whole copy",
     "copy_not_unique": "its copy is held by more than one element and nothing stable tells them apart",
     "not_matched": "what the request carries does not show the page holding this copy under that role or text",
     "unprovable": "its uniqueness cannot be evaluated from the inventory and snapshot the request carries",
@@ -780,6 +782,8 @@ def proof_gap(inventory: Any, kind: str, cand_page: str) -> Tuple[str, str]:
     if kind == "role":
         code = ("aria_snapshot_unusable" if inventory.aria_over else "aria_snapshot_missing" if not inventory.aria
                 else "unprovable")
+    elif inventory.cut_copy(cand_page):
+        code = "copy_maybe_cut"
     elif not inventory.complete:
         code = "listing_incomplete"
     elif inventory.counts_missing:

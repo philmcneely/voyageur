@@ -81,6 +81,14 @@ Besides the controls and hooked elements, the list holds the visible elements th
 radio's label text), each marked `copy_only`, so a step that finds its element by text can be healed. They fill only the room the others
 leave under 500, in page order, and are not counted in `more`: the ones left out are counted in the probe's `copy_more` (send it as `page.inventory_copy_more`; each `copy_only` item also says `copy_cut`), and while it is above zero no text count read from the listing is certain, so none is made. Their copy is at most 80 characters, is never inside a form control, an
 editable region or a text-entry role, and is left out when it holds an e-mail address, a run of six or more digits or a token-like word.
+An item's `text` and `name` are cut at 80 characters (UTF-16 units, as JavaScript counts), and an item whose text or name is that long says
+whether it went on: `text_cut` / `name_cut` is `true` when copy was cut off and `false` when it ends exactly there (a shorter one says nothing,
+unless the probe stopped reading the element's copy at its own bounds, 1000 nodes or 400 characters: then it says `true`).
+A cut head is not the page's copy: the service never counts an exact text, name or label match, or a css `[attr="..."]` / `[attr$=...]` on
+`title`, `alt`, `placeholder`, `aria-label` or a `data-*` value, against a value that may be one (the flag, else a length at the limit; a `label`,
+`aria_label`, `title`, `alt` and `data_*` value are cut at 80 and a `placeholder` at 200, with no flag), so a written locator is refused as
+`copy_maybe_cut`, and one the client sent is `unknown` in an overlay or an audit, unless `page.aria_snapshot` carries the whole copy and
+counts it (and then no element is named as the one that holds a copy as long as the limit unless the probe said it is whole).
 A `label` with a `for` is listed with it as `for_attr`. An element whose whole copy is that of a listed element inside it is marked `copy_wrap` (text locators match the inner one). The filters above are in [SECURITY.md](SECURITY.md#client-data-is-untrusted); a run of six or more digits keeps a `copy_only` item out, `inventory_copy_more`, `inventory_copy_withheld` (the probe's `copy_withheld`) and `inventory_copy_withheld_data` (`copy_withheld_data`) are at most 1,000,000 each (leave the two withheld ones out and a listing with `copy_only` items is read as having withheld copy); while any is above zero, the text counts that read the listing are unknown where the missing copy could match.
 
 The script is a function expression. Playwright for Python calls a function string passed to `evaluate`, but Playwright for
@@ -468,8 +476,9 @@ mark), `ambiguous` (`count` matches; every one the picture holds, at most 50, is
 scoped chain, a regex, a frame, a call over 1000 characters), and, with no locators only, `no_stable_locator` (the element is marked, and has no unique stable
 locator: `locator` is null, `reason` is the first thing the request lacked and `why` says all of it, never quoting page copy). `reason` is one of
 `aria_snapshot_missing` (no `page.aria_snapshot`, so a role and name cannot be counted), `aria_snapshot_unusable` (over its size limits),
-`copy_counts_missing` (the request has no copy counts), `listing_incomplete` (the inventory is cut, or the probe left copy out), `copy_not_unique`
-(its copy is on more than one element), `not_matched`, `unprovable`, `nothing_stable` (no stable attribute and no copy to name it by) or
+`copy_counts_missing` (the request has no copy counts), `listing_incomplete` (the inventory is cut, or the probe left copy out), `copy_maybe_cut`
+(the element's text or name is as long as the probe's cut, so it may be the head of longer copy, and only `page.aria_snapshot` can show an exact match on it),
+`copy_not_unique` (its copy is on more than one element), `not_matched`, `unprovable`, `nothing_stable` (no stable attribute and no copy to name it by) or
 `unwritable`; it is null when a locator was written. `ref` is the element when exactly one is matched, `refs` the listed elements matched, `visible` how many of their boxes were drawn.
 `kind` and `tier` give the locator's stability rank (`test_id` 0, `id` 1, `name` 2, `css` 3, `role` 4, `label` 5, `placeholder` 6, `text` 7, `chain` 8: lower is more stable)
 and `copy_based` whether it depends on page copy. With no locators `element_kind` says `interactive` (a form control, a button, a link, an element with a control's role, or

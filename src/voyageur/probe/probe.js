@@ -48,6 +48,9 @@ Features:
       letters, digits and hyphens (at most 60 after `data-`): a name with `_` could not be told from its hyphenated twin,
       and any other name would be refused by the service's schema
     ✓ `name` is aria-label, else the element's own copy; `text` is the element's own copy; `disabled` and `hidden` flags
+    ✓ `text` and `name` are cut at 80 characters, and an item whose text or name is that long says whether it went on: `text_cut`
+      / `name_cut` is true when copy was cut off, false when it ends exactly there (a shorter one says nothing: it was never cut).
+      An exact match on a cut head proves nothing about the page, so the service reads the flag, and the length when it is absent
     ✓ `pw_text` is the element's text as Playwright's has_text reads it (no separator between elements, hidden text
       included, at most 200 characters) and `pw_cut` says it is incomplete (longer, too big, or holding a textarea, a
       select or an editable region, whose text is never read)
@@ -103,10 +106,11 @@ Author: PMAC
   // `s` unless it holds something the filters above withhold (a copy_only item is held to the shorter digit run)
   const safe = (s, strict) => (s && ((strict ? SENSITIVE_COPY : SENSITIVE).test(s) || tokenish(s))) ? '' : s;
   const COPY_NODES = 1000;       // nodes one read of a copy looks at, whatever they hold
+  // `st.cut` says the read stopped at one of its bounds with more of the node left, so the copy it returns is not all of it
   const copy = (node, win, depth = 0, st = {n: 0}) => {
     let out = '';
     for (const c of node.childNodes) {
-      if (out.length > 400 || depth > 30 || ++st.n > COPY_NODES) break;
+      if (out.length > 400 || depth > 30 || ++st.n > COPY_NODES) { st.cut = true; break; }
       if (c.nodeType === 3) { out += c.nodeValue; continue; }
       if (c.nodeType !== 1 || VALUE_TAGS.test(c.tagName) || c.isContentEditable || ENTRY_ROLE.test(c.getAttribute('role') || '')) continue;
       const d = win.getComputedStyle(c).display;
@@ -116,15 +120,20 @@ Author: PMAC
     }
     return out;
   };
-  const ownCopy = (el, win, raw = false) => {
+  // The longest `text` and `name` an item carries (JavaScript's length, UTF-16 units); the item says when it cut one (text_cut, name_cut)
+  const COPY_CHARS = 80;
+  // The element's own copy before it is cut at COPY_CHARS (`st.cut` is set when the read of it was cut short); `raw` is a
+  // button / submit / reset input's label as the page wrote it
+  const ownFull = (el, win, raw = false, st = {n: 0}) => {
     if (VALUE_TAGS.test(el.tagName) && !(/^input$/i.test(el.tagName) && /^(button|submit|reset)$/i.test(el.type))) return '';
     if (/^input$/i.test(el.tagName)) {
       const inputLabel = String(el.value || '');                  // a button / submit / reset input's label is its value
-      return raw ? inputLabel : clean(inputLabel).slice(0, 80);
+      return raw ? inputLabel : clean(inputLabel);
     }
     if (el.isContentEditable || ENTRY_ROLE.test(el.getAttribute('role') || '')) return '';
-    return clean(copy(el, win)).slice(0, 80);
+    return clean(copy(el, win, 0, st));
   };
+  const ownCopy = (el, win, raw = false) => raw ? ownFull(el, win, true) : ownFull(el, win).slice(0, COPY_CHARS);
   // The text Playwright's has_text reads, so the service can prove a .filter(has_text=...) from the listing: text nodes and
   // every descendant's text joined with no separator, hidden ones included, a button / submit / reset input's raw label,
   // open shadow roots; HTML script, style and noscript skipped (Playwright's test is the upper-case name, so an SVG
@@ -177,7 +186,6 @@ Author: PMAC
     return false;
   };
   // The copy of a visible element that has a text node of its own and is not listed for another reason, else ''.
-  const COPY_CHARS = 80;
   const hasOwnText = el => Array.from(el.childNodes).some(c => c.nodeType === 3 && c.nodeValue.trim());
   let why = '';                       // why the last copyOf said '': 'data' (inside a control or a data widget), 'withheld', or ''
   const copyOf = el => {
@@ -239,9 +247,10 @@ Author: PMAC
       .map(i => el.getRootNode().getElementById ? el.getRootNode().getElementById(i) : null).filter(Boolean)
       .map(n => clean(copy(n, win))).join(' ');
     const at = n => cl(String(el.getAttribute(n) || '').slice(0, 400)).trim().slice(0, 200);
-    const text = ownCopy(el, win);
+    const st = {n: 0}, full = ownFull(el, win, false, st), nameFull = clean(at('aria-label') || full);
+    const text = full.slice(0, COPY_CHARS);
     const item = {tag: el.tagName.toLowerCase(), type: at('type'), role: at('role'),
-      name: clean(at('aria-label') || text).slice(0, 80),
+      name: nameFull.slice(0, COPY_CHARS),
       aria_label: at('aria-label').slice(0, 80), label: (labels || byIds).slice(0, 80),
       placeholder: at('placeholder'), id: cl(el.id || '').slice(0, 200),
       testid: at('data-testid'), data_test: at('data-test'), data_qa: at('data-qa'), data_cy: at('data-cy'),
@@ -251,6 +260,12 @@ Author: PMAC
       hidden, box: hidden || !(r.width > 0 && r.height > 0) ? null
         : {x: r.left + ox, y: r.top + oy, width: r.width, height: r.height}};
     for (const k of ['text', 'name', 'label', 'aria_label', 'placeholder', 'title', 'alt']) item[k] = safe(item[k], leaf);
+    // A text or name as long as the cut says whether it went on (true) or ends there (false): an exact match on a cut one proves
+    // nothing, and without this the service can only guess from the length. A shorter one was never cut, so it says nothing,
+    // unless the read of the copy stopped at its own bounds (nodes, depth, 400 characters) with more of the element left.
+    const viaCopy = !at('aria-label');                    // the name is the copy itself, not an aria-label
+    if (item.text.length >= COPY_CHARS || (st.cut && item.text)) item.text_cut = full.length > COPY_CHARS || !!st.cut;
+    if (item.name.length >= COPY_CHARS || (st.cut && viaCopy && item.name)) item.name_cut = nameFull.length > COPY_CHARS || (viaCopy && !!st.cut);
     if (leaf) { item.copy_only = true; if (cut) item.copy_cut = true; }
     if (wrap) item.copy_wrap = true;
     for (const n of el.getAttributeNames()) {

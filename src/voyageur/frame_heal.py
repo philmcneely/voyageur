@@ -47,7 +47,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .elements import compatible, stable_keys
 from .frames import HopHeal, Scope, _names_of, hop_absent, last_hop
-from .inventory import Inventory
+from .inventory import Inventory, possibly_cut
 from .locator_policy import (COPY_KINDS, RANK, Written, _attr_value, _data_attrs, _id_selector, _py, _swap_receiver, _ts,
                              copy_based, is_generated_id, kind_of, render_chain)
 from .locator_steps import chain_to_data, try_parse
@@ -113,7 +113,7 @@ def frame_selectors(frame: Dict[str, Any], siblings: List[Dict[str, Any]], test_
         found.append((f"iframe{q('name', name)}", "name", "name_attr", name))
     for attr, value in _data_attrs(frame):
         found.append((f"iframe{q(attr, value)}", "css", "data_" + attr[5:].replace("-", "_"), value))
-    if frame.get("title"):
+    if frame.get("title") and not possibly_cut(frame, "title"):         # a title as long as the probe's cut may be the head of a longer one
         found.append((f"iframe{q('title', frame['title'])}", "title", "title", frame["title"]))
     if name and unstable_name(name):
         found.append((f"iframe{q('name', name)}", "name", "name_attr", name))

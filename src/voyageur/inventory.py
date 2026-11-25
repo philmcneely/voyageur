@@ -39,6 +39,9 @@ Features:
     ✓ A form control named by its label (checkbox, textbox, radio, combobox, ...) is not a getByText match: its aria line is not
       counted, the control that holds the words itself (a div with role=checkbox) is, from the listing
     ✓ counts_missing: the client sent no copy counts, so a text count the listing cannot answer for is the request's gap to name
+    ✓ A text, name, label, title, alt or placeholder as long as the probe's limit (80 UTF-16 units; a placeholder 200) may be the head
+      of longer copy, so an exact match against it is unknown (`cut_copy`), not a match and not a miss; the aria snapshot, which holds
+      the whole copy, still counts it. The probe's own `text_cut` / `name_cut` is believed when it is sent, the length judged when not
 
 Environment Variables:
     None.
@@ -101,7 +104,11 @@ def compound_holds(tag: str, conds: List[Condition], el: Dict[str, Any]) -> Opti
     if tag and tag != "*" and el.get("tag") != tag:
         return False
     for attr, op, val in conds:
-        have = el.get(_ATTR_KEYS.get(attr) or attr.replace("-", "_"), "")
+        key = _ATTR_KEYS.get(attr) or attr.replace("-", "_")
+        have = el.get(key, "")
+        if have and val and possibly_cut(el, key) and (
+                op == "$=" or (op in ("=", "^=") and val.startswith(have) and (op == "=" or len(val) > len(have)))):
+            return None                          # the value is the head of longer copy, which this test may or may not match
         if op == "exists":
             ok = bool(have)
         elif op == "=":
@@ -175,6 +182,62 @@ def _match_text(want: str, have: str, exact: bool) -> bool:
     return have_n == want_n if exact else want_n.lower() in have_n.lower()
 
 
+# The longest value the probe sends for each field, in UTF-16 units (it cuts with JavaScript's slice). A value that long may be the head
+# of longer copy, which no exact match against it can prove or refute. `text` and `name` also come with a flag (`text_cut`, `name_cut`)
+# from a probe that says whether the copy went on; the flag is believed when it is there, the length is read when it is not.
+PROBE_CAPS = {"text": 80, "name": 80, "label": 80, "aria_label": 80, "title": 80, "alt": 80, "placeholder": 200}
+DATA_CAP = 80                                  # a data-* value (listed as data_<name>; the three hook spellings are cut at 200, not here)
+_HOOK_KEYS = ("data_test", "data_qa", "data_cy")
+
+
+class CopyMaybeCut(rx.CannotEvaluate):
+    """An exact match was asked of a value the probe may have cut short: the listing cannot say it holds, or does not hold, the copy."""
+
+
+def _utf16_len(value: str) -> int:
+    return len(value.encode("utf-16-le", "surrogatepass")) // 2
+
+
+def possibly_cut(el: Dict[str, Any], key: str) -> bool:
+    """True when the listed element's `key` may be the head of longer copy: the probe said so (`<key>_cut`), or, with no word from the
+    probe, the value is as long as the probe's limit for that field. A copy_only item's copy is never cut: the probe lists one
+    only when its whole copy is at most 80. An older probe's `name` taken from a text it cut at a space is one character short
+    (it trims what it cut), so a name that is the text is cut when the text may be."""
+    flag = el.get(key + "_cut")
+    if isinstance(flag, bool):
+        return flag
+    value = el.get(key)
+    if not isinstance(value, str) or not value or (el.get("copy_only") and value == el.get("text")):
+        return False
+    cap = PROBE_CAPS.get(key) or (DATA_CAP if key.startswith("data_") and key not in _HOOK_KEYS else None)
+    if cap is None:
+        return False
+    if _utf16_len(value) >= cap:
+        return True
+    return key == "name" and possibly_cut(el, "text") and normalize_space(value) == normalize_space(el.get("text") or "")
+
+
+def _field_hit(el: Dict[str, Any], key: str, want: str, exact: bool, snapshot: bool = False) -> bool:
+    """Whether the listed element's `key` matches `want`, as _match_text says, except that an exact text which the value is the head
+    of cannot be told from the listing: raises CopyMaybeCut. With `snapshot` (the request's aria snapshot holds every element's whole
+    copy and does the counting) it is not raised but decided: a head the probe said it cut is not the copy; one that only looks as
+    long as the limit may be, so it counts as a possible match (which element holds the copy is then not claimed)."""
+    have = el.get(key)
+    if not have:
+        return False
+    if exact and not isinstance(want, rx.RegexLit) and possibly_cut(el, key) and normalize_space(want).startswith(normalize_space(have)):
+        if snapshot:
+            return el.get(key + "_cut") is not True
+        raise CopyMaybeCut(key)
+    return _match_text(want, have, exact)
+
+
+def _any_hit(el: Dict[str, Any], keys: Tuple[str, ...], want: str, exact: bool, snapshot: bool = False) -> bool:
+    """Whether any of the element's `keys` matches (all are read: a key that may be cut makes the answer unknown even when another
+    key of the same element matches, since that one may be the same cut copy)."""
+    return any([_field_hit(el, k, want, exact, snapshot) for k in keys])
+
+
 def _innermost(hits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """`hits` (listed elements whose copy matched) without the wrappers the probe marked (`copy_wrap`, said by the DOM): getByText
     matches the smallest element holding the text, so a wrapper of one text is not a match of its own."""
@@ -207,7 +270,7 @@ def _clean(el: Any) -> Optional[Dict[str, Any]]:
     for k, v in el.items():
         if not isinstance(k, str):
             continue
-        if k in ("hidden", "top_at_center", "hit", "pw_cut", "copy_only", "copy_cut", "copy_wrap"):
+        if k in ("hidden", "top_at_center", "hit", "pw_cut", "copy_only", "copy_cut", "copy_wrap", "text_cut", "name_cut"):
             if isinstance(v, bool):
                 out[k] = v
         elif k == "box":
@@ -255,6 +318,7 @@ class Inventory:
         # redacted here as well as at intake: refusal hints quote snapshot names back to the model, so an Inventory
         # built from any other path must not carry typed values (redaction is idempotent and linear)
         self.aria = "" if self.aria_over else redact_typed_values(aria)
+        self._snapshot_counts = bool(self.aria)     # a snapshot holds each element's whole copy, so it does the counting of text and names
 
     def inherit(self, other: "Inventory") -> None:
         """Take the gaps of `other` (a scope's inventory is a view of the page's: it is as incomplete as the page's)."""
@@ -287,7 +351,7 @@ class Inventory:
         if not self.complete:
             return None
         return sum(1 for el in self.elements
-                   if el.get(attr) and _match_text(want, el[attr], exact) and not (visible_only and el.get("hidden")))
+                   if _field_hit(el, attr, want, exact) and not (visible_only and el.get("hidden")))
 
     def _label_count(self, want: str, exact: bool) -> Optional[int]:
         if not self.complete:
@@ -296,10 +360,10 @@ class Inventory:
         for el in self.elements:
             if el.get("hidden"):
                 continue
-            texts = [el.get("label", ""), el.get("aria_label", "")]       # getByLabel also reads aria-label
+            keys = ["label", "aria_label"]                       # getByLabel also reads aria-label
             if el.get("tag") in ("input", "textarea", "select"):
-                texts.append(el.get("name", ""))                # aria-label / value of a form control
-            n += any(t and _match_text(want, t, exact) for t in texts)
+                keys.append("name")                             # aria-label / value of a form control
+            n += _any_hit(el, tuple(keys), want, exact)
         return n
 
     def _text_count(self, want: str, exact: bool) -> Optional[int]:
@@ -307,7 +371,7 @@ class Inventory:
         list only: a cut-short one could be missing the element)."""
         if self.aria_over:
             return None
-        listed = any(el.get("copy_only") and el.get("text") and _match_text(want, el["text"], exact) for el in self.elements)
+        listed = any(el.get("copy_only") and _field_hit(el, "text", want, exact) for el in self.elements)
         if (not self.aria or listed) and self._listing_short(exact, listed):
             return None
         if not self.aria and _withheld_shape(want):
@@ -315,8 +379,7 @@ class Inventory:
         if not self.aria:
             if not self.complete:
                 return None
-            return sum(1 for el in self.elements if not el.get("hidden") and el.get("text")
-                       and _match_text(want, el["text"], exact))
+            return sum(1 for el in self.elements if not el.get("hidden") and _field_hit(el, "text", want, exact))
         n = 0
         # a form control's name is its label or aria-label, which no text match lands on: its line is not counted, and the
         # controls that hold the words themselves (a div with role=checkbox) are counted from the listing, which lists every role
@@ -326,12 +389,12 @@ class Inventory:
             if m and m.group(2) not in skip:
                 n += any(t and _match_text(want, t, exact) for t in ((m.group(3) or ""), (m.group(4) or "")))
         if skip:
-            n += sum(1 for el in self.elements if not el.get("hidden") and _role_of(el) in skip and el.get("text")
-                     and _match_text(want, el["text"], exact))
+            n += sum(1 for el in self.elements if not el.get("hidden") and _role_of(el) in skip and _field_hit(el, "text", want, exact))
         # the snapshot folds plain text next to other text into one line, so an element listed for its copy is counted
-        # from the listing; the larger count is the safe one (the snapshot has the roles, the listing has the plain text)
+        # from the listing; the larger count is the safe one (the snapshot has the roles, the listing has the plain text). The
+        # snapshot holds an element's whole copy, so a head the probe cut is not counted from the listing here: the snapshot has it
         if self.complete:
-            hits = [el for el in self.elements if not el.get("hidden") and el.get("text") and _match_text(want, el["text"], exact)]
+            hits = [el for el in self.elements if not el.get("hidden") and _field_hit(el, "text", want, exact, snapshot=True)]
             if any(el.get("copy_only") for el in hits):
                 n = max(n, len(_innermost(hits)))
         return n
@@ -353,6 +416,20 @@ class Inventory:
                 return self._count(expr)
         except rx.CannotEvaluate:
             return None
+
+    def cut_copy(self, expr: str) -> bool:
+        """True when `expr` cannot be counted because it asks for an exact match of a value the probe may have cut short (a
+        head of longer copy). The snapshot, when the request carries one, would count it."""
+        if too_long(expr, MAX_EXPR_CHARS):
+            return False
+        try:
+            with rx.work_budget():
+                self._count(expr)
+        except CopyMaybeCut:
+            return True
+        except rx.CannotEvaluate:
+            return False
+        return False
 
     def _count(self, expr: str) -> Optional[int]:
         sp = LOCATOR_SPLIT_RE.search(expr)
@@ -433,28 +510,27 @@ class Inventory:
         if name in ("locator", "frameLocator", "frame_locator"):
             return None if isinstance(lit, rx.RegexLit) else self._css_hits(lit, False)
         if name in ("getByPlaceholder", "get_by_placeholder"):
-            return [e for e in els if e.get("placeholder") and _match_text(lit, e["placeholder"], exact)]
+            return [e for e in els if _field_hit(e, "placeholder", lit, exact)]
         if name in ("getByTestId", "get_by_test_id"):
             return [e for e in els if e.get("testid") == lit]
         if name in ("getByAltText", "get_by_alt_text"):
-            return [e for e in els if e.get("alt") and _match_text(lit, e["alt"], exact)]
+            return [e for e in els if _field_hit(e, "alt", lit, exact)]
         if name in ("getByTitle", "get_by_title"):
-            return [e for e in els if e.get("title") and _match_text(lit, e["title"], exact)]
+            return [e for e in els if _field_hit(e, "title", lit, exact)]
         if name in ("getByLabel", "get_by_label"):
             out = []
             for e in els:
-                texts = [e.get("label", ""), e.get("aria_label", "")]
+                keys = ["label", "aria_label"]
                 if e.get("tag") in ("input", "textarea", "select"):
-                    texts.append(e.get("name", ""))
-                if any(t and _match_text(lit, t, exact) for t in texts):
+                    keys.append("name")
+                if _any_hit(e, tuple(keys), lit, exact):
                     out.append(e)
             return out
         if name in ("getByText", "get_by_text"):
-            if _withheld_shape(lit) or self._listing_short(exact, any(e.get("copy_only") and e.get("text") and _match_text(lit, e["text"], exact)
-                                              for e in els)):
+            if _withheld_shape(lit) or self._listing_short(exact, any(e.get("copy_only") and _field_hit(e, "text", lit, exact) for e in els)):
                 return None                                 # the listing is missing some copy: which elements match is unknown
             return _innermost([e for e in els      # not by `label`: getByText finds the <label>, never the control it names
-                               if any(e.get(k) and _match_text(lit, e[k], exact) for k in ("text", "name"))])
+                               if _any_hit(e, ("text", "name"), lit, exact, self._snapshot_counts)])
         if name in ("getByRole", "get_by_role"):
             nm = re.search(r"name\s*[:=]\s*(?:'((?:[^'\\]|\\.)*)'|\"((?:[^\"\\]|\\.)*)\")", opts)
             want = (nm.group(1) if nm and nm.group(1) is not None else nm.group(2)) if nm else None
@@ -466,8 +542,8 @@ class Inventory:
                     continue
                 if level is not None and heading_level(e) not in (None, level):
                     continue                                # an h3 is not a level 2 heading (a heading whose level is not listed stays in)
-                if want is not None and not any(e.get(k) and _match_text(want, e[k], nm_exact)
-                                                for k in ("label", "name", "text", "placeholder", "title")):
+                if want is not None and not _any_hit(e, ("label", "name", "text", "placeholder", "title"), want, nm_exact,
+                                                     self._snapshot_counts):
                     continue
                 out.append(e)
             return out

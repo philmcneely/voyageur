@@ -247,6 +247,8 @@ class InventoryItem(_Element):
     copy_cut: StrictBool = False                   # on a copy_only entry: the probe left copy-holding elements out (its `copy_more`)
     copy_only: StrictBool = False                  # listed only because it holds copy: no hook, role or control tag made it a candidate
     top_at_center: Optional[StrictBool] = None     # the probe's elementFromPoint at the box centre landed on this element
+    text_cut: Optional[StrictBool] = None          # the probe cut `text` at 80 characters (False: it is exactly that long, whole); None: not said
+    name_cut: Optional[StrictBool] = None          # the same for `name`
     pw_text: Optional[str] = Field(None, max_length=MAX_FIELD_CHARS)   # the text has_text reads; None from an older probe
     pw_cut: StrictBool = False                     # pw_text is incomplete: the text cannot be said NOT to hold a string
     box: Optional[Box] = None
@@ -288,6 +290,9 @@ class InventoryItem(_Element):
             out["copy_cut"] = True
         if self.copy_wrap:
             out["copy_wrap"] = True
+        for key in ("text_cut", "name_cut"):
+            if getattr(self, key) is not None:
+                out[key] = getattr(self, key)              # kept when False: the probe said the copy is whole
         if self.top_at_center is not None:
             out["top_at_center"] = self.top_at_center
         if self.pw_text is not None:
@@ -808,7 +813,7 @@ class LegendEntry(BaseModel):
     kind: Optional[str] = None
     tier: Optional[int] = None              # the locator's stability rank (locator_policy.RANK): 0 test id, 1 id, 2 name, 3 css, 4 role, 5 label, 6 placeholder, 7 text, 8 chain; lower is more stable
     copy_based: bool = False                # the locator depends on page copy (a text, a name, a label)
-    reason: Optional[str] = None            # no_stable_locator only: what the request lacked to show a copy locator unique (aria_snapshot_missing, copy_counts_missing, listing_incomplete, copy_not_unique, ...) or nothing_stable
+    reason: Optional[str] = None            # no_stable_locator only: what the request lacked to show a copy locator unique (aria_snapshot_missing, copy_counts_missing, listing_incomplete, copy_maybe_cut, copy_not_unique, ...) or nothing_stable
     why: Optional[str] = None               # that, as a sentence; it names no page copy
 
 

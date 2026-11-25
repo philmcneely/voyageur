@@ -389,6 +389,139 @@ def test_a_locator_that_is_not_drawn_has_no_color():
     assert out["legend"][0]["color"] is None and out["legend"][0]["visible"] == 0
 
 
+# ---- tabs stay outside the boxes ----------------------------------------------------------------------------------------
+def rect(box):
+    return (box[0], box[1], box[0] + box[2], box[1] + box[3])
+
+
+def trespasses(out, marks, strict=None):
+    """(owner, box) for every tab that covers a box it has no right to: its own, or a marked box that does not hold its own (a
+    section around a field is where the field sits; `strict` lists the owners whose tab may not lie in one either, None: no
+    one's). The boxes are the marks' own (a picture at scale 1), the owners are indexes into `marks`."""
+    boxes = [rect(m.box) for m in marks]
+    bad = []
+    for tab, owner in zip(out.tabs, out.tab_owners):
+        mine = boxes[owner]
+        for j, b in enumerate(boxes):
+            around = j != owner and b[0] <= mine[0] and b[1] <= mine[1] and b[2] >= mine[2] and b[3] >= mine[3]
+            if (not around or owner in (strict or ())) and ov._overlaps(tab, b):
+                bad.append((owner, j))
+    return bad
+
+
+def on_picture(out):
+    return all(0 <= t[0] < t[2] <= out.width and 0 <= t[1] < t[3] <= out.height for t in out.tabs)
+
+
+# the drift-fr testbed page at 900 x 640 as the probe lists it, and the locators the service writes for it (none: no stable one)
+DRIFT = [((190, 57, 520, 27), ""), ((190, 100, 520, 180), 'page.get_by_test_id("profile-panel")'), ((190, 115, 520, 18), ""),
+         ((190, 143, 520, 18), "page.locator(\"label[for='display-name']\")"), ((190, 165, 520, 29), 'page.get_by_test_id("display-name-input")'),
+         ((190, 204, 520, 19), ""), ((194, 207, 13, 13), "page.locator(\"input[data-pref='newsletter']\")"),
+         ((190, 235, 95, 31), 'page.get_by_test_id("save-settings")'), ((190, 280, 520, 88), 'page.locator("#danger")'),
+         ((190, 295, 520, 18), ""), ((190, 323, 153, 31), 'page.get_by_test_id("delete-account")'),
+         ((190, 384, 520, 30), 'page.get_by_test_id("summary")')]
+# a box 50 x 20 in a slot between two walls 110 px apart: a line of 41 characters is 250 px wide, so only a number can go beside it
+POCKET = [Mark(1, (100, 90, 50, 20), 'page.get_by_test_id("a-very-long-test-id-for-the-save-button")'),
+          Mark(2, (68, 0, 2, 200)), Mark(3, (181, 0, 2, 200))]
+
+
+@pytest.mark.parametrize("labels", ["numbers", "locators"])
+def test_tabs_sit_outside_every_box_never_over_another_boxs_text_or_another_tab(labels):
+    marks = [Mark(n, box, text if labels == "locators" else "") for n, (box, text) in enumerate(DRIFT, start=1)]
+    out = render_marks(png_bytes(900, 640), marks, (900, 640, 1), labels=labels)
+    assert len(out.tabs) == 12 and on_picture(out) and tabs_clear(out)
+    assert trespasses(out, marks) == []
+    drawn_as_text = {n - 1 for n, _ in out.texts}                                   # mark n is index n - 1
+    assert (labels == "numbers") == (not drawn_as_text) and trespasses(out, marks, strict=drawn_as_text) == []      # a line of text is over no box at all
+    assert sorted(out.tab_owners) == list(range(12))                                 # every mark has its tab
+
+
+def test_a_tab_that_would_cover_a_neighbour_goes_to_the_free_side():
+    marks = [Mark(1, (50, 60, 100, 30)), Mark(2, (50, 95, 100, 30))]               # the gap between them is 5 px: no tab fits in it
+    out = render_marks(png_bytes(300, 200), marks, (300, 200, 1))
+    assert trespasses(out, marks) == [] and tabs_clear(out)
+    vision = ov.render(png_bytes(300, 200), [m.box for m in marks], (300, 200, 1))      # the vision picture follows the same rule
+    assert trespasses(vision, marks) == [] and len(vision.tabs) == 2
+
+
+def test_a_tab_may_lie_inside_a_box_that_holds_its_own_but_not_over_a_box_beside_it():
+    marks = [Mark(1, (30, 30, 240, 140)), Mark(2, (50, 70, 80, 30)), Mark(3, (160, 70, 80, 30))]      # a section and two boxes in it
+    out = render_marks(png_bytes(300, 200), marks, (300, 200, 1))
+    assert trespasses(out, marks) == [] and tabs_clear(out)
+    assert len(out.tabs) == 3 and on_picture(out)
+
+
+def test_a_locator_that_does_not_fit_beside_its_box_falls_back_to_its_number_and_the_picture_says_so():
+    out = render_marks(png_bytes(300, 200), POCKET, (300, 200, 1), labels="locators")
+    assert out.number_only == ((1, 1),) and 1 not in dict(out.texts)                  # drawn as a number, not as text
+    assert trespasses(out, POCKET) == [] and tabs_clear(out)
+    tab = out.tabs[out.tab_owners.index(0)]
+    assert tab[2] - tab[0] < 30                                                     # a number's width, not 250 px of text
+
+
+def test_nothing_falls_back_in_numbers_mode_and_a_locator_that_fits_keeps_its_text():
+    assert render_marks(png_bytes(300, 200), POCKET, (300, 200, 1), labels="numbers").number_only == ()
+    roomy = render_marks(png_bytes(900, 640), [Mark(1, (400, 300, 80, 30), 'page.get_by_test_id("go")')], (900, 640, 1), labels="locators")
+    assert roomy.number_only == () and dict(roomy.texts) == {1: 'page.get_by_test_id("go")'}
+
+
+def test_the_legend_and_summary_name_the_entries_that_fell_back():
+    inv = [{"ref": "e0", "tag": "button", "name": "Save", "attrs": {"data-testid": "a-very-long-test-id-for-the-save-button"},
+            "box": {"x": 100, "y": 90, "w": 50, "h": 20}},
+           {"ref": "e1", "tag": "div", "attrs": {"id": "left"}, "box": {"x": 68, "y": 0, "w": 2, "h": 200}},
+           {"ref": "e2", "tag": "div", "attrs": {"id": "right"}, "box": {"x": 181, "y": 0, "w": 2, "h": 200}}]
+    out = run(inventory=inv, labels="locators")
+    legend = legend_of(out)
+    save = legend[1]
+    assert save["locator"].startswith("page.get_by_test_id(") and len(save["locator"]) > MAX_LABEL_CHARS - 10
+    assert save["label"] is None and save["number_only"] == 1 and save["label_truncated"] is False and save["visible"] == 1
+    assert all(e["number_only"] == (e["label"] is None) for e in legend.values())                 # a label is null exactly when the number was drawn
+    assert out["summary"]["number_only"] == sum(1 for e in legend.values() if e["number_only"]) >= 1
+    assert OverlayResponse.model_validate(out)
+    numbers = run(inventory=inv, labels="numbers")
+    assert numbers["summary"]["number_only"] == 0 and all(e["number_only"] == 0 for e in numbers["legend"])
+
+
+def test_a_locator_that_matches_several_boxes_counts_the_boxes_that_fell_back():
+    inv = [{"ref": f"e{i}", "tag": "input", "attrs": {"name": f"n{i}"}, "box": {"x": 10 + 40 * i, "y": 10, "w": 30, "h": 20}}
+           for i in range(6)]
+    out = run(locators=["page.locator('input')"], inventory=inv, labels="locators")
+    e = out["legend"][0]
+    assert e["visible"] == 6 and 0 < e["number_only"] <= 6 and (e["label"] is None) == (e["number_only"] == 6)
+    assert out["summary"]["number_only"] == 1
+
+
+def test_a_label_that_was_never_drawn_is_not_a_fallback():
+    out = run(locators=["self.page.locator('#ghost')"], labels="locators")
+    e = out["legend"][0]
+    assert e["number_only"] == 0 and out["summary"]["number_only"] == 0
+
+
+def test_when_no_outside_place_exists_the_mark_still_gets_its_number_and_the_rule_is_deterministic():
+    tiles = [Mark(n, box, 'page.get_by_test_id("tile-%d")' % n) for n, box in enumerate(
+        [(0, 0, 60, 40), (60, 0, 60, 40), (0, 40, 60, 40), (60, 40, 60, 40)], start=1)]      # four boxes that fill the picture
+    a = render_marks(png_bytes(120, 80), tiles, (120, 80, 1), labels="locators")
+    b = render_marks(png_bytes(120, 80), tiles, (120, 80, 1), labels="locators")
+    assert a.drawn == (1, 2, 3, 4) and len(a.tabs) == 4 and on_picture(a) and tabs_clear(a)
+    assert a.number_only == ((1, 1), (2, 1), (3, 1), (4, 1)) and a.texts == ()
+    assert a.png == b.png and a.tabs == b.tabs and a.tab_owners == b.tab_owners
+
+
+def test_the_fallback_is_deterministic_for_the_pocket_too():
+    a = render_marks(png_bytes(300, 200), POCKET, (300, 200, 1), labels="locators")
+    b = render_marks(png_bytes(300, 200), POCKET, (300, 200, 1), labels="locators")
+    assert a.png == b.png and a.number_only == b.number_only and a.tabs == b.tabs
+
+
+@pytest.mark.parametrize("same", [False, True])
+def test_six_hundred_marks_are_placed_and_none_is_dropped(same):
+    boxes = [(5, 5, 1500, 700) if same else (5 + (i % 30) * 50, 5 + (i // 30) * 40, 40, 30) for i in range(600)]
+    marks = [Mark(i + 1, b, 'page.get_by_test_id("item-%d")' % i) for i, b in enumerate(boxes)]
+    out = render_marks(png_bytes(1600, 800), marks, (1600, 800, 1), labels="locators")
+    assert out.drawn == tuple(range(1, 601)) and len(out.tabs) == 600 and sorted(out.tab_owners) == list(range(600))
+    assert on_picture(out)
+
+
 # ---- locators mode: the text on the image ------------------------------------------------------------------------------
 def test_every_printable_ascii_character_has_one_distinct_5_wide_glyph():
     glyphs = {chr(c): ov._GLYPHS[chr(c)] for c in range(0x20, 0x7F)}
@@ -441,7 +574,7 @@ def test_a_label_wider_than_the_image_is_shortened_to_fit():
 
 
 def test_labels_in_locators_mode_for_every_visible_element_use_the_written_locators():
-    out = run(labels="locators")
+    out = run(labels="locators", w=600, h=400)                                       # room beside the boxes for the longest line
     assert out["legend"][0]["label"] == 'page.get_by_test_id("login-user")'
     assert all(e["label"] for e in out["legend"])
 
@@ -797,3 +930,11 @@ def test_the_api_page_documents_the_route_with_a_working_example():
         r = c.post("/v1/overlay", json=ex["value"])
         assert r.status_code == 200, (name, r.text)
         OverlayResponse.model_validate(r.json())
+
+
+def test_a_line_of_text_is_never_drawn_inside_the_box_around_its_element_and_falls_back_to_its_number_instead():
+    marks = [Mark(1, (50, 50, 200, 24), "page.locator(\"label[for='x']\")"), Mark(2, (54, 55, 13, 13), 'page.get_by_test_id("agree-to-terms")')]
+    out = render_marks(png_bytes(300, 120), marks, (300, 120, 1), labels="locators")
+    assert trespasses(out, marks) == [] and tabs_clear(out)
+    assert trespasses(out, marks, strict={0}) == []                                      # the text tab is over no box, around or not
+    assert out.number_only == ((2, 1),) and dict(out.texts) == {1: marks[0].text}        # the checkbox's line had no place: its number

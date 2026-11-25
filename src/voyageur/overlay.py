@@ -30,7 +30,15 @@ Features:
       font), Lanczos resampling, no PNG metadata: the same inputs give the same bytes on one Pillow version
     ✓ A module-level function over plain data (bytes, tuples), so a killable worker can run it under the request deadline
     ✓ render_marks(): the whole-viewport variant for POST /v1/overlay with numbers or locator text as labels; every outline is
-      drawn first and then every tab, a tab above its box, else below, else inside it, never over another tab when a place is free
+      drawn first and then every tab
+    ✓ A tab goes outside its box (above, below or beside the outline, never over the element's own content) and never over
+      another marked box or another tab. A locator's text that has no such place falls back to the number alone
+      (`Overlay.number_only` says which, the legend carries the whole locator); a number tries the same places and then the gaps
+      inside the boxes that hold its element (still clear of every other box and tab); one that has none either takes the place
+      where it covers the least (area of other boxes and tabs under it, the old above, below, inside order breaking a tie), so
+      no mark is dropped
+    ✓ Placement is bounded: at most a dozen candidate places per tab, each checked against the boxes and tabs near it through a
+      grid of 64 px cells, not against all of them
     ✓ Overlapping boxes stay legible: biggest drawn first (so a section lies under what it holds), a number whose box overlaps a
       lower number's box takes the next free palette color, a box that sits snugly inside another is drawn one outline's width
       further in, and tabs are placed biggest box first
@@ -47,7 +55,7 @@ Author: PMAC
 import io
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, FrozenSet, List, Optional, Sequence, Set, Tuple
 
 from PIL import Image, ImageDraw
 
@@ -138,7 +146,9 @@ class Overlay:
     boxes: Tuple[Tuple[int, int], ...] = ()          # render_marks only: (number, how many of its boxes were drawn), by number
     colors: Tuple[Tuple[int, str], ...] = ()         # render_marks only: (number, the color it was drawn in as #rrggbb)
     texts: Tuple[Tuple[int, str], ...] = ()          # render_marks only: (number, the text drawn for it, after fitting the picture)
-    tabs: Tuple[Tuple[int, int, int, int], ...] = ()  # render_marks only: where each label went (x0, y0, x1, y1), in drawing order
+    tabs: Tuple[Tuple[int, int, int, int], ...] = ()  # where each label went (x0, y0, x1, y1), in drawing order
+    tab_owners: Tuple[int, ...] = ()                 # for each tab, the index of its box in the boxes (render) or marks (render_marks) passed
+    number_only: Tuple[Tuple[int, int], ...] = ()    # render_marks only: (number, boxes that drew the number because the text had no place)
 
 
 def _scale(img_w: int, img_h: int, viewport: Tuple[Optional[float], Optional[float], Optional[float]]) -> float:
@@ -208,18 +218,144 @@ def _outline(draw: ImageDraw.ImageDraw, color: Tuple[int, int, int], rect: Tuple
         draw.rectangle((x0 + k, y0 + k, max(x0 + k, x1 - 1 - k), max(y0 + k, y1 - 1 - k)), outline=color)
 
 
-def _mark(draw: ImageDraw.ImageDraw, number: int, rect: Tuple[float, float, float, float], size: Tuple[int, int],
-          g: int) -> None:
-    color = _PALETTE[(number - 1) % len(_PALETTE)]
-    x0, y0, x1, y1 = (round(v) for v in rect)
-    _outline(draw, color, rect, g)
-    text = str(number)
-    pad = g
-    tab_w, tab_h = len(text) * 6 * g - g + 2 * pad, 7 * g + 2 * pad
-    tx = min(max(0, x0), max(0, size[0] - tab_w))
-    ty = y0 - tab_h if y0 - tab_h >= 0 else min(y0, max(0, size[1] - tab_h))
-    draw.rectangle((tx, ty, tx + tab_w - 1, ty + tab_h - 1), fill=color)
-    _text(draw, text, tx + pad, ty + pad, g)
+def _holds(outer: Sequence[int], inner: Sequence[int], tol: int = 2) -> bool:
+    """Whether `outer` lies around `inner` (within `tol` px, for a border or a rounding)."""
+    return outer[0] <= inner[0] + tol and outer[1] <= inner[1] + tol and outer[2] >= inner[2] - tol and outer[3] >= inner[3] - tol
+
+
+def _share(a: Sequence[int], b: Sequence[int]) -> int:
+    """The area two rectangles share, in px."""
+    return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
+
+
+CELL = 64                        # px a side of the grid cells that find the rectangles near a tab
+
+
+class _Grid:
+    """Rectangles (x0, y0, x1, y1 in px) filed under the CELL-sized cells of the picture they touch, so asking what is near a
+    tab looks at the few rectangles in its cells and not at every box and tab. A rectangle touches at most (picture / CELL)^2 cells."""
+
+    def __init__(self, size: Tuple[int, int]):
+        self.size = size
+        self.cells: Dict[Tuple[int, int], List[int]] = {}
+
+    def _span(self, r: Sequence[int]) -> Tuple[range, range]:
+        w, h = self.size
+        return (range(max(0, min(r[0], w - 1)) // CELL, max(0, min(max(r[0], r[2] - 1), w - 1)) // CELL + 1),
+                range(max(0, min(r[1], h - 1)) // CELL, max(0, min(max(r[1], r[3] - 1), h - 1)) // CELL + 1))
+
+    def add(self, key: int, r: Sequence[int]) -> None:
+        cols, rows = self._span(r)
+        for cx in cols:
+            for cy in rows:
+                self.cells.setdefault((cx, cy), []).append(key)
+
+    def near(self, r: Sequence[int]) -> Set[int]:
+        """Keys of the rectangles that may touch `r`, each once (what is asked of them does not depend on the order)."""
+        cols, rows = self._span(r)
+        return {k for cx in cols for cy in rows for k in self.cells.get((cx, cy), ())}
+
+
+class _Tabs:
+    """Where the label tabs of one picture go. `boxes` are the rounded rectangles of every box drawn (an index is a mark's);
+    a tab for box i goes in the first of the places around it that is inside the picture and covers no box and no tab placed.
+    `within` loosens that for the boxes that lie around box i (a section around a field is where the field sits): their inside,
+    clear of every other box, is free too. A tab never covers box i itself."""
+
+    def __init__(self, size: Tuple[int, int], boxes: Sequence[Tuple[int, int, int, int]]):
+        self.size, self.boxes = size, list(boxes)
+        self.box_grid, self.tab_grid = _Grid(size), _Grid(size)
+        self.placed: List[Tuple[int, int, int, int]] = []
+        self._around: Dict[int, FrozenSet[int]] = {}
+        for i, b in enumerate(self.boxes):
+            self.box_grid.add(i, b)
+
+    def _holders(self, i: int) -> FrozenSet[int]:
+        """The boxes (other than i) that lie around box i, found once through the cell of i's centre: whatever holds a box
+        covers its centre (give or take the 2 px of _holds)."""
+        if i not in self._around:
+            own = self.boxes[i]
+            mid = ((own[0] + own[2]) // 2, (own[1] + own[3]) // 2)
+            self._around[i] = frozenset(j for j in self.box_grid.near((mid[0] - 2, mid[1] - 2, mid[0] + 3, mid[1] + 3))
+                                        if j != i and _holds(self.boxes[j], own))
+        return self._around[i]
+
+    def _outside(self, i: int, w: int, h: int) -> List[Tuple[int, int]]:
+        """The places touching the outside of box i, nearest first: above and below (left aligned, right aligned, centred), then
+        beside it (top aligned, bottom aligned). A place that does not fit the picture is left out; one that would only slide
+        along the box's edge is slid, never moved onto the box."""
+        x0, y0, x1, y1 = self.boxes[i]
+        W, H = self.size
+        along = lambda x: min(max(0, x), max(0, W - w))              # noqa: E731  (slid sideways to stay in the picture)
+        beside = lambda y: min(max(0, y), max(0, H - h))             # noqa: E731
+        out = [(along(x0), y0 - h), (along(x0), y1), (along(x1 - w), y0 - h), (along(x1 - w), y1),
+               (x1, beside(y0)), (x0 - w, beside(y0)), (x1, beside(y1 - h)), (x0 - w, beside(y1 - h)),
+               (along((x0 + x1 - w) // 2), y0 - h), (along((x0 + x1 - w) // 2), y1)]
+        seen: List[Tuple[int, int]] = []
+        for tx, ty in out:
+            if 0 <= tx and 0 <= ty and tx + w <= W and ty + h <= H and (tx, ty) not in seen:
+                seen.append((tx, ty))
+        return seen
+
+    def _clash(self, i: int, tab: Tuple[int, int, int, int], within: bool) -> bool:
+        around = self._holders(i) if within else frozenset()
+        for j in self.box_grid.near(tab):
+            if j not in around and _overlaps(tab, self.boxes[j]):
+                return True
+        return any(_overlaps(tab, self.placed[k]) for k in self.tab_grid.near(tab))
+
+    def place(self, i: int, w: int, h: int, within: bool = False) -> Optional[Tuple[int, int]]:
+        """The first place outside box i for a w x h tab that covers no box (those around box i excepted when `within`) and no
+        tab, or None."""
+        for tx, ty in self._outside(i, w, h):
+            if not self._clash(i, (tx, ty, tx + w, ty + h), within):
+                return tx, ty
+        return None
+
+    def squeeze(self, i: int, w: int, h: int) -> Tuple[int, int]:
+        """No clean place exists: the one that covers the least (px under the tab of other boxes and tabs, and twice that of box i
+        itself; the boxes around box i do not count), the earlier of the old places (above, below, inside the top, inside the bottom,
+        the same at the right end, then one tab further) winning a tie. Clamped into the picture, so the mark is always drawn."""
+        x0, y0, x1, y1 = self.boxes[i]
+        W, H = self.size
+        tries = [(x0, y0 - h), (x0, y1), (x0, y0), (x0, y1 - h), (x1 - w, y0 - h), (x1 - w, y1), (x1 - w, y0), (x1 - w, y1 - h),
+                 (x0, y0 - 2 * h), (x0, y1 + h), (x0 + w, y0 - h), (x0 + w, y1)]
+        around = self._holders(i)
+        best: Optional[Tuple[int, Tuple[int, int]]] = None
+        for tx, ty in tries:
+            tx, ty = min(max(0, tx), max(0, W - w)), min(max(0, ty), max(0, H - h))
+            tab = (tx, ty, tx + w, ty + h)
+            limit = best[0] if best else None                        # a place already worse than the best so far is not added up
+            under = [self.boxes[j] for j in self.box_grid.near(tab) if j not in around and j != i]
+            under += [self.placed[k] for k in self.tab_grid.near(tab)]
+            cost = 2 * _share(tab, self.boxes[i])                    # what it points at counts double
+            for other in under:
+                cost += _share(tab, other)
+                if limit is not None and cost >= limit:
+                    break
+            if best is None or cost < best[0]:
+                best = (cost, (tx, ty))
+        assert best is not None
+        return best[1]
+
+    def put(self, tab: Tuple[int, int, int, int]) -> None:
+        self.tab_grid.add(len(self.placed), tab)
+        self.placed.append(tab)
+
+
+def _tab_size(label: str, k: int, pad: int, rows: int) -> Tuple[int, int]:
+    """Width and height of a tab holding `label`: glyphs k px, `pad` around, `rows` glyph rows tall."""
+    return len(label) * 6 * k - k + 2 * pad, rows * k + 2 * pad
+
+
+def _draw_tab(draw: ImageDraw.ImageDraw, tabs: _Tabs, spot: Tuple[int, int], size: Tuple[int, int], label: str,
+              color: Tuple[int, int, int], k: int, pad: int) -> Tuple[int, int, int, int]:
+    """Draw `label` on a tab of `size` at `spot` in `color`, record the tab as placed and return it."""
+    tab = (spot[0], spot[1], spot[0] + size[0], spot[1] + size[1])
+    tabs.put(tab)
+    draw.rectangle((tab[0], tab[1], tab[2] - 1, tab[3] - 1), fill=color)
+    _text(draw, label, tab[0] + pad, tab[1] + pad, k)
+    return tab
 
 
 def _decode(png: bytes) -> "Image.Image":
@@ -258,12 +394,23 @@ def render(png: bytes, boxes: Sequence[Optional[Box]], viewport: Tuple[Optional[
         out = out.resize(size, Image.Resampling.LANCZOS)
     draw = ImageDraw.Draw(out)
     g = max(2, round(max(size) / 340))
-    for number, (x0, y0, x1, y1) in seen:
-        # the clipped part of the box, in the crop's pixels (the marked box is what a person sees of the element)
-        _mark(draw, number, ((x0 - left) * f, (y0 - top) * f, (x1 - left) * f, (y1 - top) * f), size, g)
+    # the clipped part of each box, in the crop's pixels (the marked box is what a person sees of the element)
+    rects = [((x0 - left) * f, (y0 - top) * f, (x1 - left) * f, (y1 - top) * f) for _, (x0, y0, x1, y1) in seen]
+    for (number, _), rect in zip(seen, rects):
+        _outline(draw, _PALETTE[(number - 1) % len(_PALETTE)], rect, g)
+    tabs = _Tabs(size, [tuple(round(v) for v in r) for r in rects])
+    placed: List[Tuple[int, int, int, int]] = []
+    owners: List[int] = []
+    for i, (number, _) in enumerate(seen):                           # the candidates' order: the first one gets the first free place
+        text = str(number)
+        dims = _tab_size(text, g, g, 7)
+        spot = tabs.place(i, *dims) or tabs.place(i, *dims, within=True) or tabs.squeeze(i, *dims)
+        placed.append(_draw_tab(draw, tabs, spot, dims, text, _PALETTE[(number - 1) % len(_PALETTE)], g, g))
+        owners.append(seen[i][0] - 1)
     buf = io.BytesIO()
     out.save(buf, format="PNG", compress_level=6)
-    return Overlay(buf.getvalue(), size[0], size[1], tuple(n for n, _ in seen), tuple(hidden))
+    return Overlay(buf.getvalue(), size[0], size[1], tuple(n for n, _ in seen), tuple(hidden),
+                   tabs=tuple(placed), tab_owners=tuple(owners))
 
 
 # ---- POST /v1/overlay: the whole viewport, any number of marks, a number or a line of text for each --------------------------
@@ -293,22 +440,6 @@ def _cut(text: str, n: int) -> str:
 
 def _overlaps(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> bool:
     return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
-
-
-def _place(w: int, h: int, rect: Tuple[float, float, float, float], placed: List[Tuple[int, int, int, int]],
-           size: Tuple[int, int]) -> Tuple[int, int]:
-    """Where a w x h tab goes for the box `rect`: above it, below it, inside its top, inside its bottom (left aligned), then the
-    same four at its right end, then two lines up, two down and shifted right by one tab; the first place inside the image that
-    covers no tab already placed, else the first one."""
-    x0, y0, x1, y1 = (round(v) for v in rect)
-    tries = []
-    for tx, ty in ((x0, y0 - h), (x0, y1), (x0, y0), (x0, y1 - h), (x1 - w, y0 - h), (x1 - w, y1), (x1 - w, y0), (x1 - w, y1 - h),
-                   (x0, y0 - 2 * h), (x0, y1 + h), (x0 + w, y0 - h), (x0 + w, y1)):
-        tries.append((min(max(0, tx), max(0, size[0] - w)), min(max(0, ty), max(0, size[1] - h))))
-    for tx, ty in tries:
-        if not any(_overlaps((tx, ty, tx + w, ty + h), p) for p in placed):
-            return tx, ty
-    return tries[0]
 
 
 def _area(rect: Sequence[float]) -> float:
@@ -374,10 +505,15 @@ def render_marks(png: bytes, marks: Sequence[Mark], viewport: Tuple[Optional[flo
     w, h = im.size
     s = _scale(w, h, viewport)
     seen: List[Tuple[Mark, Tuple[float, ...]]] = []
+    owner_of: List[int] = []                                         # the index of each seen mark among `marks`
     missed: List[int] = []
-    for mark in marks:
+    for n, mark in enumerate(marks):
         part = _visible(mark.box, scroll, s, w, h)
-        (seen.append((mark, part)) if part else missed.append(mark.number))
+        if part:
+            seen.append((mark, part))
+            owner_of.append(n)
+        else:
+            missed.append(mark.number)
     f = min(1.0, OVERLAY_LONG_SIDE / max(w, h))
     size = (max(1, round(w * f)), max(1, round(h * f)))
     out = im.resize(size, Image.Resampling.LANCZOS) if size != im.size else im
@@ -395,22 +531,31 @@ def render_marks(png: bytes, marks: Sequence[Mark], viewport: Tuple[Optional[flo
         depth = sum(1 for o in outer if _snug(o, rect, 2 * g)) if len(rects) <= MAX_COLORED_BOXES else 0
         _outline(draw, _PALETTE[colors[m.number]], _inset(rect, depth * g), g)
         outer.append(rect)
+    tabs = _Tabs(size, [tuple(round(v) for v in r) for _, r in rects])
     placed: List[Tuple[int, int, int, int]] = []
+    owners: List[int] = []
     texts: Dict[int, str] = {}
+    number_only: Dict[int, int] = {}
     for i in order:
         m, rect = rects[i]
+        color = _PALETTE[colors[m.number]]
         label = clean_label(m.text) if labels == "locators" else ""      # whatever the caller passed, only drawable text is drawn
+        spot = None
         if label:
             k, pad, rows = t, t + 1, 8                               # a line of text may carry a descender
             label = _cut(label, max(1, (size[0] - 2 * pad + k) // (6 * k)))      # never wider than the picture
-            texts.setdefault(m.number, label)
-        else:
+            dims = _tab_size(label, k, pad, rows)
+            spot = tabs.place(i, *dims)
+            if spot:
+                texts.setdefault(m.number, label)
+            else:                                                    # no place outside for the line: the number, the legend has the text
+                number_only[m.number] = number_only.get(m.number, 0) + 1
+        if spot is None:
             label, k, pad, rows = str(m.number), g, g, 7
-        tab_w, tab_h = len(label) * 6 * k - k + 2 * pad, rows * k + 2 * pad
-        tx, ty = _place(tab_w, tab_h, rect, placed, size)
-        placed.append((tx, ty, tx + tab_w, ty + tab_h))
-        draw.rectangle((tx, ty, tx + tab_w - 1, ty + tab_h - 1), fill=_PALETTE[colors[m.number]])
-        _text(draw, label, tx + pad, ty + pad, k)
+            dims = _tab_size(label, k, pad, rows)
+            spot = tabs.place(i, *dims) or tabs.place(i, *dims, within=True) or tabs.squeeze(i, *dims)
+        placed.append(_draw_tab(draw, tabs, spot, dims, label, color, k, pad))
+        owners.append(owner_of[i])
     buf = io.BytesIO()
     out.save(buf, format="PNG", compress_level=6)
     per_number: Dict[int, int] = {}
@@ -419,7 +564,7 @@ def render_marks(png: bytes, marks: Sequence[Mark], viewport: Tuple[Optional[flo
     drawn = sorted(per_number)
     return Overlay(buf.getvalue(), size[0], size[1], tuple(drawn), tuple(sorted(set(missed) - set(drawn))),
                    tuple(sorted(per_number.items())), tuple((n, "#%02x%02x%02x" % _PALETTE[c]) for n, c in sorted(colors.items())),
-                   tuple(sorted(texts.items())), tuple(placed))
+                   tuple(sorted(texts.items())), tuple(placed), tuple(owners), tuple(sorted(number_only.items())))
 
 
 __all__ = ["Overlay", "OverlayError", "Mark", "render", "render_marks", "visible_boxes", "clean_label", "LONG_SIDE", "MIN_CROP",

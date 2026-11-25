@@ -815,8 +815,8 @@ class HealSession:
         res = o.dl.run(stages.write_for, o.inv, o.target["ref"], o.tri.language, o.tri.receiver, o.broken_kind,
                        o.kept.test_id_attribute, o.tri.call, o.scope, o.hop)
         if not res.candidates:
-            return self._finish(o, "needs_human", "no_stable_locator", WHY["no_stable_locator"], 5,
-                                cache=("needs_human", "no_stable_locator", 5))
+            why = WHY["no_stable_locator"] + (f" ({res.why})" if res.why else "")      # what a copy locator would have needed
+            return self._finish(o, "needs_human", "no_stable_locator", why, 5, cache=("needs_human", "no_stable_locator", 5))
         o.queue, o.below_floor = list(res.candidates), res.below_floor
         if o.advise:
             return self._advise(o)

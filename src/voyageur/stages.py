@@ -179,7 +179,8 @@ def _written(inv: Inventory, ref: str, language: str, receiver: str, broken_kind
             moved = None
         if moved is not None:
             kept.append(moved)
-    return WriteResult(kept, res.below_floor if kept else False, res.floor_kind, "" if kept else "no_stable_locator")
+    return WriteResult(kept, res.below_floor if kept else False, res.floor_kind, "" if kept else "no_stable_locator",
+                       "" if kept else res.gap, "" if kept else res.why)
 
 
 _CALL_CLASS = re.compile(r"""\.([A-Za-z_][A-Za-z0-9_-]*)""")

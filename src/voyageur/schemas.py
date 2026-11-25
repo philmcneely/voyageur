@@ -807,6 +807,8 @@ class LegendEntry(BaseModel):
     kind: Optional[str] = None
     tier: Optional[int] = None              # the locator's stability rank (locator_policy.RANK): 0 test id, 1 id, 2 name, 3 css, 4 role, 5 label, 6 placeholder, 7 text, 8 chain; lower is more stable
     copy_based: bool = False                # the locator depends on page copy (a text, a name, a label)
+    reason: Optional[str] = None            # no_stable_locator only: what the request lacked to show a copy locator unique (aria_snapshot_missing, copy_counts_missing, listing_incomplete, copy_not_unique, ...) or nothing_stable
+    why: Optional[str] = None               # that, as a sentence; it names no page copy
 
 
 class OverlaySummary(BaseModel):

@@ -88,6 +88,20 @@ The ladder is climbed from the cheapest step; the first step that settles the qu
    Each is kept only if it is unique on the page (the inventory is
    the oracle), is that element, parses in both languages and passes the replacement validator. Structural and positional locators are
    never written, so an element with nothing stable and unique ends `needs_human` (`no_stable_locator`).
+   **Text elements** (headings, paragraphs, list items, plain and wrapping labels, named landmarks) follow the same ranking, so a stable attribute
+   on one is still the locator. With none, the copy-based tiers apply, each written only when the request proves it unique. *Role and name*
+   comes first: a heading is `get_by_role("heading", name=..., level=N, exact=True)` (the level is the tag's, `h2` is 2, and is left out when the
+   listing cannot say it, e.g. a `div role=heading`), and a landmark the author named (`nav`, `aside`, `form`, `section`, `article`, `dialog`, `table`
+   with an `aria-label` or `aria-labelledby`) is its role with that name, never its inner copy; a `p`, `li` or plain label has no accessible
+   name from its content, so it is never written as a role. The proof is `page.aria_snapshot` (`uniqueness.aria_count` counts the role, the
+   exact name and the level), and the listing must agree that the one match is this element. *Exact text* (`get_by_text(..., exact=True)`) is
+   next, proven from the probe's copy counts (`Inventory._text_count`; a form control named by a label is not a text match, the control's
+   own copy is). A copy-based result is `copy_based` and tier `role` 4 or `text` 7 wherever the API says so, and it is never turned into another
+   language: on a page whose language differs from the passing run it goes through step 6 (a branch per language, the old copy from the
+   broken call or the recording, else `language_branch_unavailable`). When neither proof is possible the element has no locator and
+   `WriteResult.gap` / `why` (the overlay legend's `reason` / `why`, a heal's `why`) say which: `aria_snapshot_missing`,
+   `aria_snapshot_unusable`, `copy_counts_missing`, `listing_incomplete`, `copy_not_unique`, `not_matched`, `unprovable`, or `nothing_stable`
+   (no copy and no stable attribute). A reason names no page copy.
    **Row scope** (`row_scope.py`): when none of the element's own locators is unique on the page (a `data-qa=status` badge in
    every order row), the probe's `row` and `row_attr` name the nearest ancestor with a test hook. The writer then looks for a
    locator unique among that row's elements (those inside the row's box, those whose nearest hook is the row, and, followed

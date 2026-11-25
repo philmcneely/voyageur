@@ -202,7 +202,7 @@ The service never translates copy.
 
 Reason codes: `ambiguous_source`, `source_not_found` (triage); `assertion_mismatch`, `element_inert`, `no_locator_in_error` (`not_drift`);
 `target_missing`, `no_pick`, `pick_rejected`, `no_identity_proof`, `model_not_configured`, `max_calls`, `budget_exhausted`, `renamed_neighbour`,
-`moved_into_frame` (the pick); `no_stable_locator`, `language_branch_unavailable`, `no_candidate_left`, `max_rounds` (the write and verify); `deadline_exceeded`, `worker_failed` (a stage ran past `HEAL_REQUEST_DEADLINE_S`, or its worker died); `open_expired` (a conversation the client did not answer within `HEAL_OPEN_TTL_S`).
+`moved_into_frame` (the pick); `no_stable_locator` (`why` then says what a copy locator would have needed, e.g. `page.aria_snapshot` or the probe's copy counts), `language_branch_unavailable`, `no_candidate_left`, `max_rounds` (the write and verify); `deadline_exceeded`, `worker_failed` (a stage ran past `HEAL_REQUEST_DEADLINE_S`, or its worker died); `open_expired` (a conversation the client did not answer within `HEAL_OPEN_TTL_S`).
 
 For a step that enters an iframe the hop is healed too when it names no listed iframe and exactly one place (a frame, or the page) holds an element
 identity proof accepts as the step's: the candidate is then the new hop (or none) with the step's own locator after it. When it cannot be
@@ -412,15 +412,23 @@ passes the door but cannot be decoded is a 422 that names the reason.
 (1 is the first), whatever its status. **With none**, every listed element that is not hidden and is on the picture is marked, numbered in
 listing order, and labelled with the locator the service would write for it (the same candidates, uniqueness proof and stability ranking a heal
 uses). That is every element a test could target, not only controls: headings, labels, paragraphs and status text, and the sections and
-landmarks the probe lists, as well as inputs, buttons and links. Text locators need the probe's copy counts in the request and role locators need
-`page.aria_snapshot`; without them the service cannot prove them unique and marks the element `no_stable_locator`. Elements inside a frame are not marked.
+landmarks the probe lists, as well as inputs, buttons and links. A text element keeps the ranking every other element has: a test id, a stable id, a
+name or another stable attribute wins, and only when it has none does the service use copy. Then it is **role and name** first (a heading is
+`get_by_role("heading", name="Profil", level=2, exact=True)`, the level from its tag; a landmark an author named, such as `nav aria-label="Main"`,
+is its role with that name), then **exact text** (`get_by_text("Profil", exact=True)`). A paragraph, a list item or a plain label has no
+accessible name from its content, so it is text, never a role. A copy locator is written only when the request proves it unique: a role locator
+needs `page.aria_snapshot` (counted by role, exact name and level) and a text locator needs the probe's copy counts (`inventory_copy_more`,
+`inventory_copy_withheld`, `inventory_copy_withheld_data`). When neither can be shown the element is marked `no_stable_locator` and the
+entry says why in `reason` and `why`; the service never guesses a copy locator. A copy locator has `copy_based: true` and is written in the
+page's own language (it is never translated: a heal that moves a copy locator to a page in another language returns `branches`, one locator
+per language). Elements inside a frame are not marked.
 
 ```json
 {"image": {"media_type": "image/png", "data": "<base64>", "width": 240, "height": 180},
  "labels": "numbers",
  "legend": [{"number": 1, "locator": "self.page.locator('#pwd')", "label": null, "label_truncated": false, "status": "matched",
              "count": 1, "ref": "e1", "refs": ["e1"], "visible": 1, "color": "#c81e1e", "kind": "id", "tier": 1, "copy_based": false,
-             "element_kind": null},
+             "element_kind": null, "reason": null, "why": null},
             {"number": 2, "locator": "self.page.locator('#ghost')", "status": "not_found", "count": 0, "ref": null, "refs": [], "visible": 0, "color": null, "...": "..."},
             {"number": 3, "locator": "self.page.locator('input')", "status": "ambiguous", "count": 2, "ref": null, "refs": ["e0", "e1"], "visible": 2, "color": "#1e3cc8", "...": "..."}],
  "summary": {"locators": 3, "marked": 2, "not_visible": 0, "by_status": {"matched": 1, "not_found": 1, "ambiguous": 1},
@@ -436,7 +444,11 @@ whatever the viewport. The same request gives the same bytes on one Pillow versi
 `status`: `matched` (exactly one listed element, on the picture), `not_visible` (exactly one, but it has no box or is mostly outside the screenshot: no
 mark), `ambiguous` (`count` matches; every one the picture holds, at most 50, is marked with the locator's number and color), `not_found`, `unknown` (the inventory cannot say: a
 scoped chain, a regex, a frame, a call over 1000 characters), and, with no locators only, `no_stable_locator` (the element is marked, and has no unique stable
-locator: `locator` is null). `ref` is the element when exactly one is matched, `refs` the listed elements matched, `visible` how many of their boxes were drawn.
+locator: `locator` is null, `reason` is the first thing the request lacked and `why` says all of it, never quoting page copy). `reason` is one of
+`aria_snapshot_missing` (no `page.aria_snapshot`, so a role and name cannot be counted), `aria_snapshot_unusable` (over its size limits),
+`copy_counts_missing` (the request has no copy counts), `listing_incomplete` (the inventory is cut, or the probe left copy out), `copy_not_unique`
+(its copy is on more than one element), `not_matched`, `unprovable`, `nothing_stable` (no stable attribute and no copy to name it by) or
+`unwritable`; it is null when a locator was written. `ref` is the element when exactly one is matched, `refs` the listed elements matched, `visible` how many of their boxes were drawn.
 `kind` and `tier` give the locator's stability rank (`test_id` 0, `id` 1, `name` 2, `css` 3, `role` 4, `label` 5, `placeholder` 6, `text` 7, `chain` 8: lower is more stable)
 and `copy_based` whether it depends on page copy. With no locators `element_kind` says `interactive` (a form control, a button, a link, an element with a control's role, or
 one a handler acts on) or `text` (everything else: headings, labels, paragraphs, status text, sections and landmarks), and `summary.by_element_kind` counts them.

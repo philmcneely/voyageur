@@ -34,6 +34,11 @@ Features:
     ✓ `label[for="x"]` is counted (the probe lists every label with a `for`); getByText matches the listed copy of an element,
       never the control a label names
     ✓ A locator's own regex text is bounded and a malformed one is "no match", never an error
+    ✓ Roles a tag implies: a heading for h1 to h6 (heading_level() gives its level, which getByRole(level=) is matched against),
+      a region, navigation, complementary, form, article, dialog or table only when an author named it (aria-label / aria-labelledby)
+    ✓ A form control named by its label (checkbox, textbox, radio, combobox, ...) is not a getByText match: its aria line is not
+      counted, the control that holds the words itself (a div with role=checkbox) is, from the listing
+    ✓ counts_missing: the client sent no copy counts, so a text count the listing cannot answer for is the request's gap to name
 
 Environment Variables:
     None.
@@ -45,11 +50,11 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from .failing import balanced_end
-from .locators import LOCATOR_SPLIT_RE
+from .locators import LOCATOR_SPLIT_RE, strip_strings
 from . import rx
 from .bounds import MAX_EXPR_CHARS, MAX_FIELD_CHARS, too_long
 from .redact import redact_typed_values, role_line
-from .uniqueness import _ROLE_RE, aria_count, aria_ok, normalize_space
+from .uniqueness import _ROLE_RE, aria_count, aria_ok, normalize_space, role_level
 
 _LISTED_TAGS = {"input", "button", "select", "textarea", "a"}
 _ATTR_KEYS = {"type": "type", "role": "role", "id": "id", "class": "class", "name": "name_attr",
@@ -227,6 +232,7 @@ class Inventory:
         # visible copy the probe's filters kept out (too long, an address, digits, inside a control or a data widget); the
         # second count is the part inside a control or data widget, short copy that can equal a text locator's exactly
         self.withheld, self.withheld_data = _count(withheld), _count(withheld_data)
+        self.counts_missing = withheld is None or withheld_data is None       # the client sent no copy counts (an older probe)
         # a client that sent no counts (None) with a listing of copy_only items is an older one: what the probe withheld is
         # not known, and not knowing is not "nothing"
         if (withheld is None or withheld_data is None) and any(c.get("copy_only") for c in cleaned):
@@ -254,6 +260,7 @@ class Inventory:
         """Take the gaps of `other` (a scope's inventory is a view of the page's: it is as incomplete as the page's)."""
         self.copy_more = max(self.copy_more, other.copy_more)
         self.withheld, self.withheld_data = max(self.withheld, other.withheld), max(self.withheld_data, other.withheld_data)
+        self.counts_missing = self.counts_missing or other.counts_missing
 
     # ---- css -------------------------------------------------------------------------------
     def _css_count(self, css: str) -> Optional[int]:
@@ -311,10 +318,16 @@ class Inventory:
             return sum(1 for el in self.elements if not el.get("hidden") and el.get("text")
                        and _match_text(want, el["text"], exact))
         n = 0
+        # a form control's name is its label or aria-label, which no text match lands on: its line is not counted, and the
+        # controls that hold the words themselves (a div with role=checkbox) are counted from the listing, which lists every role
+        skip = LABELLED_ROLES if self.complete else frozenset()
         for line in self.aria.splitlines():
             m = _ROLE_RE.match(role_line(line))
-            if m:
+            if m and m.group(2) not in skip:
                 n += any(t and _match_text(want, t, exact) for t in ((m.group(3) or ""), (m.group(4) or "")))
+        if skip:
+            n += sum(1 for el in self.elements if not el.get("hidden") and _role_of(el) in skip and el.get("text")
+                     and _match_text(want, el["text"], exact))
         # the snapshot folds plain text next to other text into one line, so an element listed for its copy is counted
         # from the listing; the larger count is the safe one (the snapshot has the roles, the listing has the plain text)
         if self.complete:
@@ -445,11 +458,14 @@ class Inventory:
         if name in ("getByRole", "get_by_role"):
             nm = re.search(r"name\s*[:=]\s*(?:'((?:[^'\\]|\\.)*)'|\"((?:[^\"\\]|\\.)*)\")", opts)
             want = (nm.group(1) if nm and nm.group(1) is not None else nm.group(2)) if nm else None
-            nm_exact = bool(re.search(r"exact\s*[:=]\s*(?:true|True)", opts))
+            nm_exact = bool(re.search(r"exact\s*[:=]\s*(?:true|True)", strip_strings(opts)))
+            level = role_level(opts)
             out = []
             for e in els:
                 if _role_of(e) != lit.lower():
                     continue
+                if level is not None and heading_level(e) not in (None, level):
+                    continue                                # an h3 is not a level 2 heading (a heading whose level is not listed stays in)
                 if want is not None and not any(e.get(k) and _match_text(want, e[k], nm_exact)
                                                 for k in ("label", "name", "text", "placeholder", "title")):
                     continue
@@ -483,16 +499,42 @@ class Inventory:
 _IMPLIED_ROLE = {"button": "button", "a": "link", "select": "combobox", "textarea": "textbox"}
 _INPUT_ROLE = {"checkbox": "checkbox", "radio": "radio", "button": "button", "submit": "button", "reset": "button",
                "range": "slider", "number": "spinbutton", "search": "searchbox"}
+_HEADING_TAG = re.compile(r"h([1-6])")
+# structure the tag gives a role only when the author named it (aria-label, or aria-labelledby the probe resolved into `label`): a
+# section is a region, a nav a navigation, only with a name; its own copy is never its name
+_NAMED_ROLE = {"nav": "navigation", "aside": "complementary", "form": "form", "section": "region", "article": "article",
+               "dialog": "dialog", "table": "table"}
+# roles a text match cannot land on when they are a form control's: the control's name is its label or aria-label, not text it holds
+LABELLED_ROLES = frozenset({"textbox", "searchbox", "checkbox", "radio", "switch", "combobox", "spinbutton", "slider"})
+
+
+def author_named(el: Dict[str, Any]) -> bool:
+    """True when the listed element carries a name its author gave it (aria-label, or the text aria-labelledby points at)."""
+    return bool(el.get("aria_label") or el.get("label"))
 
 
 def _role_of(el: Dict[str, Any]) -> str:
-    """The ARIA role of a listed element: its explicit role, else the one its tag / input type implies."""
+    """The ARIA role of a listed element: its explicit role, else the one its tag / input type implies (a heading for h1 to h6, a
+    landmark or region only when an author named it)."""
     if el.get("role"):
         return str(el["role"]).lower()
     tag = (el.get("tag") or "").lower()
     if tag == "input":
         return _INPUT_ROLE.get((el.get("type") or "text").lower(), "textbox")
+    if _HEADING_TAG.fullmatch(tag):
+        return "heading"
+    if tag in _NAMED_ROLE:
+        return _NAMED_ROLE[tag] if author_named(el) else ""
     return _IMPLIED_ROLE.get(tag, "")
+
+
+def heading_level(el: Dict[str, Any]) -> Optional[int]:
+    """The level of a listed heading, 1 to 6, when its tag says so (h2 is 2); None for anything else, and for an element that
+    says it is a heading by role (its aria-level is not listed) or that another role replaced."""
+    m = _HEADING_TAG.fullmatch((el.get("tag") or "").lower())
+    if not m or (el.get("role") and str(el["role"]).lower() != "heading"):
+        return None
+    return int(m.group(1))
 
 
 def _role_only(expr: str) -> str:

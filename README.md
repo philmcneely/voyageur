@@ -16,7 +16,9 @@ it saw. Only a verified result counts as a heal.
   typed, and it fetches no page. A screenshot is accepted only when the operator turns vision on (see [Vision](#vision-optional)).
 - **The model picks, the service writes.** When a model is needed (one call, a short list of quoted candidates), it can only name a listed
   element. Locator text is always produced by the service, ranked by stability (test id, id, name, css on a stable attribute, role
-  and name, label, text) and checked for uniqueness against the inventory. Nothing a model says becomes code.
+  and name, label, text) and checked for uniqueness against the inventory; a heading, label or paragraph gets a stable attribute when it has one,
+  else role and name (`get_by_role("heading", name=..., level=2)`), else exact text, and a copy locator is written only when the request proves
+  it unique (with a reason when it cannot). Nothing a model says becomes code.
 - **Cheapest step first.** Triage and a same-element match against the last passing run need no model at all.
 - **Every heal is recorded** (decision, step, tokens, candidates tried) and aggregated at `/v1/metrics`; every number drills down to the
   heals behind it, and `/dashboard` shows them with no external service.

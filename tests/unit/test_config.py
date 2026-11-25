@@ -67,7 +67,7 @@ def test_values_are_stripped():
 def test_service_settings_defaults_and_overrides():
     from voyageur.config import ServiceSettings
     d = ServiceSettings.from_env({})
-    assert (d.token, d.retention_days, d.run_token_budget, d.candidate_cap, d.max_calls) == (None, 14, None, 30, 2)
+    assert (d.token, d.retention_days, d.run_token_budget, d.candidate_cap, d.max_calls) == (None, 31, None, 30, 2)
     s = ServiceSettings.from_env({"HEAL_SERVICE_TOKEN": " t ", "HEAL_RETENTION_DAYS": "0", "HEAL_RUN_TOKEN_BUDGET": "500",
                                   "HEAL_CANDIDATE_CAP": "10", "HEAL_MAX_CALLS": "3", "HEAL_DB": "x.db",
                                   "HEAL_MODEL_PRICES": '{"m": {"input": 1, "output": 2.5}}'})

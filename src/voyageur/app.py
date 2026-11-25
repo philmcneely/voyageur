@@ -13,7 +13,7 @@ core with a fake model.
     POST /v1/heal                      start a heal: a candidate to try, or a decision
     POST /v1/heals/{id}/result         what the client saw when it tried the candidate: the next candidate or the decision
     GET  /v1/heals/{id}                the audit record (counts, model calls, candidates tried, outcome; no file contents)
-    GET  /v1/heals/{id}/overlay.png    the marked screenshot a vision model was shown for that heal (404 when it made no vision call)
+    GET  /v1/heals/{id}/overlay.png    the marked screenshot a vision model was shown for that heal (404 when it made no vision call, 410 when it expired)
     GET  /v1/heals                     the filtered list behind any aggregate, each row linking to its record
     GET  /v1/metrics                   the aggregates (metrics.aggregate), same filters
     POST /v1/heals/{id}/followup       what the client saw after the PR: merged unchanged, edited, reverted, ...
@@ -275,6 +275,9 @@ def create_app(core: HealSession, token: Optional[str] = None, bind_host: Option
     def overlay(heal_id: str) -> Response:
         png = core.store.get_overlay(heal_id)
         if png is None:
+            if core.store.overlay_state(heal_id)["state"] == "expired":
+                raise HTTPException(410, detail="the overlay image of this heal expired (images are kept for "
+                                                "HEAL_OVERLAY_RETENTION_DAYS); the heal record is still here")
             raise HTTPException(404, detail="no overlay for this heal")
         return Response(png, media_type="image/png", headers={"Cache-Control": "private, no-store",
                                                              "X-Content-Type-Options": "nosniff"})

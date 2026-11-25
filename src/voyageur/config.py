@@ -20,7 +20,15 @@ Features:
 Environment Variables:
     HEAL_SERVICE_TOKEN       bearer token clients must send (unset = no auth, loopback bind only)
     HEAL_DB                  path of the SQLite audit store (default .heal/voyageur.db)
-    HEAL_RETENTION_DAYS      days a heal record is kept (default 14; 0 keeps nothing)
+    HEAL_RETENTION_DAYS      days a heal record is kept (default 31, the least that lets durability be measured; 0 keeps nothing:
+                             no record, no image, no cache entry, no rollup). Older records are counted into a daily rollup
+                             (counts only) and then deleted, so /v1/metrics totals keep their history
+    HEAL_OVERLAY_RETENTION_DAYS   days the marked screenshot of a vision heal is kept (default 7; 0 stores no image). Only the image
+                             bytes go after this; the heal record stays and says its image expired. Never longer than
+                             HEAL_RETENTION_DAYS
+    HEAL_MAX_DB_MB           size cap of the audit store in megabytes (default 0 = no cap). Above it the oldest images are deleted
+                             first, then the oldest heal records (counted into the rollup first), those past the 30-day durability
+                             window before any younger one; a younger one is logged as a warning
     HEAL_RUN_TOKEN_BUDGET    model tokens one run may spend before the rest of its failures go to a human (unset = none)
     HEAL_CANDIDATE_CAP       lines in the pick list (default 30)
     HEAL_MAX_CALLS           model calls per heal (default 2)
@@ -162,6 +170,8 @@ _SETTINGS = (
     _v("token", "HEAL_SERVICE_TOKEN"),
     _v("db_path", "HEAL_DB"),
     _v("retention_days", "HEAL_RETENTION_DAYS", _integer(0)),
+    _v("overlay_retention_days", "HEAL_OVERLAY_RETENTION_DAYS", _integer(0)),
+    _v("max_db_mb", "HEAL_MAX_DB_MB", _integer(0)),
     _v("run_token_budget", "HEAL_RUN_TOKEN_BUDGET", _integer(1)),
     _v("candidate_cap", "HEAL_CANDIDATE_CAP", _integer(1)),
     _v("max_calls", "HEAL_MAX_CALLS", _integer(1)),
@@ -180,7 +190,9 @@ class ServiceSettings:
     """What the service is told, other than model endpoints (llm.endpoint_from_env)."""
     token: Optional[str] = None
     db_path: str = ".heal/voyageur.db"
-    retention_days: int = 14
+    retention_days: int = 31          # heal records; the least that lets durability (30 days) be measured
+    overlay_retention_days: int = 7   # the marked screenshot of a vision heal (about 44 KB each, 97 percent of a store)
+    max_db_mb: int = 0                # size cap of the store in megabytes; 0 is no cap
     run_token_budget: Optional[int] = None
     candidate_cap: int = 30
     max_calls: int = 2

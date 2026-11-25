@@ -277,7 +277,13 @@ its heal, and with `HEAL_RETENTION_DAYS=0` it is never stored:
 `/v1/metrics` computes every figure from these rows with one definition each, and `/v1/heals` returns the rows behind any figure.
 Every figure has a `drill` entry (the `/v1/heals` query string that lists its heals), and `/v1/heals?format=csv` exports the list. A store
 written by an earlier version gains the columns it lacks when it is opened. Advise-mode heals are counted under `advise` and diagnoses under `diagnose`, and both are left out of every
-rate. Records older than `HEAL_RETENTION_DAYS` are purged. Open conversations are held in memory, bounded, and closed after `HEAL_OPEN_TTL_S`.
+rate. Records older than `HEAL_RETENTION_DAYS` are purged, but not before `rollup.heal_counts` has turned each
+into additive counters (a heal, its calls and its tries) and added them to the `rollup` table, one row per day, scope and dimension, in the same
+transaction that deletes it, so a failed purge loses nothing and a second one counts nothing twice. `metrics.aggregate` adds the rollup's
+counters to the ones it computes from the records kept (`archive` in the answer says how many heals that is); the figures that are not sums
+(distinct locators, hot spots, runs, latency percentiles) stay on the records kept. A scope per model keeps the `model` filter exact.
+`HEAL_MAX_DB_MB` frees the oldest images first, then the oldest records past the durability window, then younger ones with a warning.
+Open conversations are held in memory, bounded, and closed after `HEAL_OPEN_TTL_S`.
 
 ## Modules
 
@@ -289,5 +295,5 @@ rate. Records older than `HEAL_RETENTION_DAYS` are purged. Open conversations ar
 | Image | `screenshot.py` (checks), `overlay.py` (marks, crop, scale, locator text, colors) |
 | Locators | `locators.py`, `locator_steps.py`, `locator_policy.py`, `uniqueness.py`, `inventory.py`, `elements.py`, `element_facts.py`, `failing.py` |
 | Model | `llm.py`, `transport.py`, `netpolicy.py`, `redact.py` |
-| Record | `store.py`, `metrics.py` |
+| Record | `store.py`, `rollup.py`, `metrics.py` |
 | Client script | `probe/probe.js` |

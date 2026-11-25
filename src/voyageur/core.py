@@ -52,7 +52,7 @@ Features:
       rates (record mode `diagnose`, outcome `diagnosed`, the cause as the reason); no screenshot is sent
     ✓ Telemetry for GET /metrics is counted here as events happen (telemetry.py)
     ✓ Vision: one overlay and one vision call per heal at most; images counted in usage; the overlay kept with the record
-      (store.put_overlay) while retention allows; the record's evidence says whether vision ran, why, and whether it changed
+      (store.put_overlay) for HEAL_OVERLAY_RETENTION_DAYS (default 7), the record staying longer; the record's evidence says whether vision ran, why, and whether it changed
       the text pick; the screenshot is held only while a vision call may still need it (bounded: MAX_HELD_IMAGE_BYTES)
     ✓ Logs carry the heal id, the outcome, a reason code and counts only; never file contents, page text or model replies
     ✓ Conversations are held in memory (bounded, oldest dropped); the record is in the store. No lock is held across a
@@ -300,7 +300,11 @@ class HealSession:
             log.warning("HEAL_RETENTION_DAYS is %d: heals are purged before durability (still passing %d days later) can be "
                         "measured, so the dashboard shows no durability figure and a follow-up for an older heal is a 404. "
                         "Set it to at least %d to measure durability.", settings.retention_days, DURABLE_DAYS, DURABLE_DAYS + 1)
-        store = Store(db_path or settings.db_path, settings.retention_days)
+        if settings.overlay_retention_days > settings.retention_days > 0:
+            log.info("HEAL_OVERLAY_RETENTION_DAYS (%d) is longer than HEAL_RETENTION_DAYS (%d): an image goes with its record.",
+                     settings.overlay_retention_days, settings.retention_days)
+        store = Store(db_path or settings.db_path, settings.retention_days, overlay_retention_days=settings.overlay_retention_days,
+                      max_db_mb=settings.max_db_mb)
         runner: Any = None
         if settings.workers > 0:
             runner = ProcessRunner(settings.workers)
@@ -324,7 +328,9 @@ class HealSession:
                 "limits": {**LIMITS, "screenshot_bytes": MAX_BYTES, "screenshot_side_px": MAX_SIDE,
                            "screenshot_pixels": MAX_PIXELS, "candidate_cap": self.settings.candidate_cap, "max_calls": self.settings.max_calls,
                            "max_rounds": 5, "run_token_budget": self.settings.run_token_budget},
-                "retention_days": self.settings.retention_days, "languages": ["python", "typescript"],
+                "retention_days": self.settings.retention_days,
+                "overlay_retention_days": self.settings.overlay_retention_days, "max_db_mb": self.settings.max_db_mb,
+                "languages": ["python", "typescript"],
                 "diagnose": {"enabled": self.settings.diagnose_enabled},
                 "durability": {"available": self.settings.retention_days > DURABLE_DAYS,
                                "needs_retention_days": DURABLE_DAYS + 1},

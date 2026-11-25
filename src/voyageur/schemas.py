@@ -30,6 +30,10 @@ Features:
     ✓ Spans are character offsets (code points) into the file content exactly as the client sent it
     ✓ options.mode "advise" asks for the decision and the best locator (an Advice) with no patch and no try rounds
     ✓ AuditRequest (POST /v1/audit) and FollowupRequest (POST /v1/heals/{id}/followup) under the same limits and refusals
+    ✓ OverlayRequest (POST /v1/overlay) is a page with its screenshot (required), optional locators (1 to 100, each up to 4000
+      characters; 413 over 100) and options {labels: numbers | locators, kinds: interactive | text, only with no locators};
+      there is no vision option, since nothing goes to a model. OverlayResponse is the marked PNG (shaped like a screenshot)
+      and the legend
     ✓ DiagnoseRequest (POST /v1/diagnose) is a heal request plus the heals an earlier run applied (`prior_heals`, at most 20, each
       a heal id, a relative path, a line and the locator before and after); DiagnoseResponse names a cause from a closed list,
       with evidence, a confidence and at most one suggested edit that is never an applicable Patch (`applied` is always false)
@@ -55,6 +59,8 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, StrictBool, Vali
 
 LIMITS = {"request_bytes": 10 * 1024 * 1024, "files": 20, "file_bytes": 256 * 1024, "source_bytes": 1024 * 1024,
           "inventory": 500, "aria_chars": 256 * 1024}
+MAX_OVERLAY_LOCATORS = 100        # locators one POST /v1/overlay may name
+MAX_OVERLAY_EXPR = 4000           # characters of one of them
 
 # keys that mean the request carries what a person typed or what a session holds
 _FORBIDDEN_KEYS = frozenset({"value", "cookie", "cookies", "set-cookie", "storage", "storage_state", "storagestate",
@@ -97,6 +103,9 @@ def check_limits(raw: Any) -> None:
         raise LimitExceeded(f"the aria snapshot is over {LIMITS['aria_chars'] // 1024} KB")
     if isinstance(aria, str) and not lines_ok(aria, MAX_ARIA_LINE_CHARS):
         raise LimitExceeded(f"an aria snapshot line is over {MAX_ARIA_LINE_CHARS // 1024} KB")
+    locators = raw.get("locators")
+    if isinstance(locators, list) and len(locators) > MAX_OVERLAY_LOCATORS:
+        raise LimitExceeded(f"more than {MAX_OVERLAY_LOCATORS} locators")
     shot = page.get("screenshot")
     data = shot.get("data") if isinstance(shot, dict) else None
     if isinstance(data, str) and len(data) > MAX_BASE64_CHARS:
@@ -531,6 +540,40 @@ class AuditRequest(_Strict):
     test_id_attribute: str = Field("data-testid", pattern=r"^[a-z][a-z0-9-]{0,63}$")
 
 
+class OverlayOptions(_Strict):
+    labels: Literal["numbers", "locators"] = "numbers"      # what is drawn beside each box: its number, or the locator's text
+    # with no locators: which listed elements to mark. interactive: controls and anything a handler acts on; text: headings,
+    # labels, paragraphs, status text, sections and landmarks. None (the default) marks both
+    kinds: Optional[List[Literal["interactive", "text"]]] = Field(None, min_length=1, max_length=2)
+
+
+class OverlayRequest(_Strict):
+    """POST /v1/overlay: a screenshot of the page with its inventory and, optionally, the locators to mark on it. Locators are
+    expressions as written in a test (`page.get_by_test_id("login")`), at most MAX_OVERLAY_LOCATORS; with none, every visible
+    element is marked and labelled with the locator the service would write for it. Nothing is healed and no model is called, so
+    no `options.vision` exists: the screenshot is only ever drawn on and returned."""
+    client: Optional[Client] = None
+    page: Page
+    locators: Optional[List[str]] = Field(None, min_length=1)
+    options: OverlayOptions = Field(default_factory=OverlayOptions)
+    test_id_attribute: str = Field("data-testid", pattern=r"^[a-z][a-z0-9-]{0,63}$")
+
+    @model_validator(mode="after")
+    def _checked(self) -> "OverlayRequest":
+        if self.page.screenshot is None:
+            raise ValueError("page.screenshot is required: an overlay is drawn on it")
+        if self.locators is not None and self.options.kinds is not None:
+            raise ValueError("options.kinds filters the elements marked when no locators are sent; it cannot be combined with locators")
+        for expr in self.locators or []:
+            if not expr.strip() or len(expr) > MAX_OVERLAY_EXPR:
+                raise ValueError(f"a locator must be 1 to {MAX_OVERLAY_EXPR} characters")
+            try:
+                expr.encode("utf-8")                         # the legend echoes it: a lone surrogate could not be sent back
+            except UnicodeEncodeError:
+                raise ValueError("a locator must be text that UTF-8 can encode") from None
+        return self
+
+
 def _decode(body: Any) -> Dict[str, Any]:
     """The JSON object in `body` (bytes, text or an already decoded dict) under the size, limit and refusal rules, in
     this order: size, JSON, limits (LimitExceeded), refused keys (RefusedRequest)."""
@@ -559,6 +602,11 @@ def _decode(body: Any) -> Dict[str, Any]:
 def parse_audit_request(body: Any) -> AuditRequest:
     """An AuditRequest from the raw body, under the same limits, refusals and redaction as a heal request."""
     return AuditRequest.model_validate(_decode(body))
+
+
+def parse_overlay_request(body: Any) -> OverlayRequest:
+    """An OverlayRequest from the raw body, under the same limits, refusals, redaction and screenshot checks as a heal request."""
+    return OverlayRequest.model_validate(_decode(body))
 
 
 def parse_diagnose_request(body: Any) -> DiagnoseRequest:
@@ -730,6 +778,48 @@ class DiagnoseResponse(BaseModel):
         return self.model_dump(by_alias=True, mode="json")
 
 
+class OverlayImage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    media_type: Literal["image/png"]
+    data: str = Field(repr=False)
+    width: int
+    height: int
+
+
+LegendStatus = Literal["matched", "not_found", "ambiguous", "not_visible", "unknown", "no_stable_locator"]
+
+
+class LegendEntry(BaseModel):
+    """One mark of the picture. `number` is the locator's position in the request (from 1); with no locators in the request,
+    the element's position among those marked."""
+    model_config = ConfigDict(extra="forbid")
+    number: int
+    locator: Optional[str] = None           # as sent, or the one the service would write; None: no stable locator is unique
+    label: Optional[str] = None             # the text drawn for it (labels "locators"), None when the number was drawn
+    label_truncated: bool = False           # the drawn text is shorter than `locator` (capped, or too wide for the picture): `locator` is whole
+    color: Optional[str] = None             # #rrggbb of its box and tab; boxes that overlap are given different colors
+    element_kind: Optional[Literal["interactive", "text"]] = None     # when no locators were sent: what kind of element it is
+    status: LegendStatus
+    count: Optional[int] = None             # listed elements it matches; None when the inventory cannot tell
+    ref: Optional[str] = None               # the element, when exactly one is matched
+    refs: List[str] = Field(default_factory=list)    # the matched elements the listing shows (at most 50)
+    visible: int = 0                        # of those, how many got a box on the picture
+    kind: Optional[str] = None
+    tier: Optional[int] = None              # the locator's stability rank (locator_policy.RANK): 0 test id, 1 id, 2 name, 3 css, 4 role, 5 label, 6 placeholder, 7 text, 8 chain; lower is more stable
+    copy_based: bool = False                # the locator depends on page copy (a text, a name, a label)
+
+
+class OverlaySummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    locators: int                           # legend entries
+    marked: int                             # legend entries with at least one box on the picture
+    not_visible: int                        # locators: entries with status not_visible; none sent: elements hidden or off the picture
+    by_status: Dict[str, int]
+    by_element_kind: Dict[str, int] = Field(default_factory=dict)      # when no locators were sent: legend entries per element kind
+    inventory: int
+    inventory_complete: bool                # the probe listed every element (inventory_more is 0)
+
+
 class HealResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     heal_id: str
@@ -749,8 +839,19 @@ class HealResponse(BaseModel):
         return self.model_dump(by_alias=True, mode="json")
 
 
+class OverlayResponse(BaseModel):
+    """POST /v1/overlay: the marked picture and what each mark is. The picture has the shape of a request's `page.screenshot`."""
+    model_config = ConfigDict(extra="forbid")
+    image: OverlayImage
+    labels: Literal["numbers", "locators"]
+    legend: List[LegendEntry]
+    summary: OverlaySummary
+    truncated: bool = False                 # the work budget ran out: the legend holds the locators done, and the picture only theirs
+
+
 __all__ = ["LIMITS", "LimitExceeded", "RefusedRequest", "ValidationError", "check_limits", "refuse_secrets",
            "strip_aria_values", "parse_request", "HealRequest", "ResultRequest", "HealResponse", "Candidate", "Patch",
            "Usage", "ModelUsage", "Expect", "Span", "Hit", "AuditRequest", "parse_audit_request", "FollowupRequest",
            "Advice", "Screenshot", "Scroll", "Later", "PriorHeal", "DiagnoseRequest", "parse_diagnose_request", "Cause",
-           "SuggestedPatch", "Diagnosis", "DiagnoseResponse"]
+           "SuggestedPatch", "Diagnosis", "DiagnoseResponse", "OverlayRequest", "OverlayResponse", "parse_overlay_request",
+           "MAX_OVERLAY_LOCATORS", "MAX_OVERLAY_EXPR"]

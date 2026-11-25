@@ -1,0 +1,89 @@
+{
+ "summary": "three locators marked, one of each kind of answer",
+ "description": "Marks `#pwd` (matched), `#ghost` (not on the page) and `input` (two elements) on the screenshot, numbered 1 to 3 in the order sent, and returns the picture and a legend. No model is called and nothing is stored.",
+ "value": {
+  "client": {
+   "framework": "playwright-ai-framework",
+   "language": "python"
+  },
+  "page": {
+   "url": "http://app.example/account",
+   "language": {
+    "html_lang": "en",
+    "browser_locale": "en-US"
+   },
+   "inventory": [
+    {
+     "tag": "input",
+     "type": "text",
+     "role": "textbox",
+     "name": "Username",
+     "label": "Username",
+     "box": {
+      "x": 10,
+      "y": 10,
+      "w": 200,
+      "h": 30
+     },
+     "attrs": {
+      "id": "user-name",
+      "data-testid": "login-user",
+      "name": "user"
+     }
+    },
+    {
+     "tag": "input",
+     "type": "password",
+     "label": "Password",
+     "box": {
+      "x": 10,
+      "y": 90,
+      "w": 200,
+      "h": 30
+     },
+     "attrs": {
+      "id": "pwd",
+      "name": "pwd"
+     }
+    },
+    {
+     "tag": "button",
+     "name": "Log in",
+     "text": "Log in",
+     "box": {
+      "x": 10,
+      "y": 130,
+      "w": 200,
+      "h": 30
+     },
+     "attrs": {
+      "id": "go"
+     }
+    }
+   ],
+   "viewport": {
+    "w": 240,
+    "h": 180,
+    "dpr": 1,
+    "scroll": {
+     "x": 0,
+     "y": 0
+    }
+   },
+   "screenshot": {
+    "media_type": "image/png",
+    "data": "iVBORw0KGgoAAAANSUhEUgAAAPAAAAC0CAIAAAAl/ja/AAAB2UlEQVR42u3doQ2DQBSA4UfDEp0GVwQGwxodpmtgMAhwTNMJIMhuQNrkCCl8n8Xd/eIlJPeyeVkDzuLmCBA0CBoEDYJG0CBoEDQIGr6Tb3/uh8kZkVxVFscEHRFN/XABJNR2o5EDBI2gQdAgaBA0CBpBg6BB0CBoEDSCBkGDoEHQIGgEDYIGQYOgQdAIGgQNggZBg6CJSz3WGDu/RAZpZfYUYuQAQYOgQdAIGgQNggZBg6ARNAgaBA2CBkEjaBA0CBoEDYJG0CBoEDQIGgSNoEHQIGgQNAgaQYOgQdAgaBA0ggZBg6BB0AgaBA2CBkGDoBE0CBoEDYIGQSNo+GP59ud+mJwRyVVlcUzQEdHUDxdAQm03GjlA0AgaBA2CBkGDoBE0CBoEDYIGQSNoEDQIGgQNgkbQIGgQNAgaBI2gQdAgaBA0CJq41GONsfNLZJBWNi+rU8DIAYIGQYOgETQIGgQNggZBE359hz2FxHn3FL7atwsgoWdzN3KAoBE0CBoEDYIGQSNoEDQIGgQNgkbQIGgQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDRxtT2Fu75EBmFPIRg5EDQIGgQNggZBI2gQNAgaBA2CRtAgaBA0CBoEjaBB0CBo+NkH1CskCVAmrPcAAAAASUVORK5CYII=",
+    "width": 240,
+    "height": 180
+   }
+  },
+  "locators": [
+   "self.page.locator('#pwd')",
+   "self.page.locator('#ghost')",
+   "self.page.locator('input')"
+  ],
+  "options": {
+   "labels": "numbers"
+  }
+ }
+}

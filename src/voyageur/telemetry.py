@@ -20,6 +20,7 @@ Grafana board and alerts.
     voyageur_followups_total{pr_state}             post-PR reports
     voyageur_followup_failed_again_total           reports that the healed locator failed again
     voyageur_audits_total                          POST /v1/audit requests answered
+    voyageur_overlays_total                        POST /v1/overlay requests answered
     voyageur_diagnoses_total{cause,confidence}     diagnoses answered (POST /v1/diagnose), by the cause named and its confidence
     voyageur_info{version}, voyageur_open_conversations   gauges
 
@@ -52,6 +53,7 @@ HELP = {
     "followups_total": ("counter", "Post-PR reports by PR state"),
     "followup_failed_again_total": ("counter", "Post-PR reports that the healed locator failed again"),
     "audits_total": ("counter", "Locator audits answered"),
+    "overlays_total": ("counter", "Overlays (locators marked on a screenshot, no model) answered"),
     "diagnoses_total": ("counter", "Diagnoses answered, by cause and confidence"),
 }
 Labels = Tuple[Tuple[str, str], ...]
@@ -128,7 +130,7 @@ class Telemetry:
                 series = sorted((labels, v) for (n, labels), v in counters.items() if n == name)
                 if not series:
                     series = [((), 0.0)] if name in ("cache_hits_total", "wrong_element_total", "audits_total",
-                                                     "followup_failed_again_total") else []
+                                                     "overlays_total", "followup_failed_again_total") else []
                 lines += [f"voyageur_{name}{_labels(labels)} {_num(v)}" for labels, v in series]
             else:
                 for (n, labels), (counts, total, count) in sorted((k, v) for k, v in hists.items() if k[0] == name):

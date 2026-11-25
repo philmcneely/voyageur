@@ -39,8 +39,10 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from . import __version__
-from .schemas import AuditRequest, DiagnoseRequest, DiagnoseResponse, FollowupRequest, HealRequest, HealResponse, ResultRequest
+from .schemas import (AuditRequest, DiagnoseRequest, DiagnoseResponse, FollowupRequest, HealRequest, HealResponse,
+                      OverlayRequest, OverlayResponse, ResultRequest)
 
+OVERLAY_EXAMPLES = ["overlay", "overlay_every_element"]
 ASSETS = {"swagger-ui-bundle.js": "application/javascript", "swagger-ui.css": "text/css", "init.js": "application/javascript"}
 EXAMPLES = ["fingerprint_match_zero_tokens", "renamed_id_to_testid", "target_removed_needs_human", "not_drift",
             "prompt_injection_in_page_text"]
@@ -102,6 +104,15 @@ def _audit_example() -> Dict[str, Any]:
                                          "value": {"source": heal["source"], "page": heal["page"]}}}
 
 
+def _overlay_examples() -> Dict[str, Any]:
+    """The overlay examples: a page with a small screenshot and some locators, and the same page with none (every element)."""
+    out = {}
+    for name in OVERLAY_EXAMPLES:
+        data = json.loads(_asset(f"examples/{name}.json"))
+        out[name] = {"summary": data["summary"], "description": data["description"], "value": data["value"]}
+    return out
+
+
 def _diagnose_example() -> Dict[str, Any]:
     heal = examples()["not_drift"]["value"]
     return {"not_drift_no_prior_heals": {"summary": "an assertion failure with every locator still matching",
@@ -118,9 +129,10 @@ def _document(routes: List[Any]) -> Dict[str, Any]:
               ("/v1/heals/{heal_id}/result", "post"): (ResultRequest, RESULT_EXAMPLES),
               ("/v1/heals/{heal_id}/followup", "post"): (FollowupRequest, {"merged": FOLLOWUP_EXAMPLE}),
               ("/v1/audit", "post"): (AuditRequest, _audit_example()),
+              ("/v1/overlay", "post"): (OverlayRequest, _overlay_examples()),
               ("/v1/diagnose", "post"): (DiagnoseRequest, _diagnose_example())}
     answers = {("/v1/heal", "post"): HealResponse, ("/v1/heals/{heal_id}/result", "post"): HealResponse,
-               ("/v1/diagnose", "post"): DiagnoseResponse}
+               ("/v1/overlay", "post"): OverlayResponse, ("/v1/diagnose", "post"): DiagnoseResponse}
     for path, ops in doc.get("paths", {}).items():
         for method, op in ops.items():
             if (path, method) in bodies:

@@ -12,7 +12,8 @@ in `fixtures/contract/` (the case named in each heading), so they are the same b
 | 409 | The heal already has its final answer (a result for an advised heal, too), or a follow-up for a heal that did not end `healed`. |
 | 403 | An open service (no token) was reached under a Host name that is not loopback (`127.0.0.1`, `localhost`, `[::1]`, with any port) or the address it binds. With a token there is no Host check. |
 | 415 | A POST without `Content-Type: application/json`. |
-| 429 | `POST /v1/audit`: every audit slot is taken (at most workers minus 1 run at once, so a heal always gets a worker). Retry after the `Retry-After` seconds. |
+| 429 | `POST /v1/audit` and `POST /v1/overlay`: every audit slot is taken (at most workers minus 1 run at once, so a heal always gets a worker). Retry after the `Retry-After` seconds. |
+| 503, 504 | `POST /v1/overlay`: its worker died (503) or was stopped at the request deadline (504). |
 | 413 | Over a limit: body over 10 MB, more than 20 files, a file over 256 KB or 1 MB of source in total, more than 500 inventory entries, an aria snapshot over 256 KB or a line over 8 KB, a screenshot over 4 MB decoded. |
 | 422 | The body is not valid JSON or does not match the schema, the error text is over 64 KB (or a line over 8 KB), it carries a `value`, `cookie` or `storage` key anywhere, or its screenshot is refused (see [Screenshot](#screenshot)). |
 
@@ -385,6 +386,72 @@ from the aria snapshot).
 element added before the target would be picked silently; `better` is a stable locator for it when one is unique), `missing` (matches none), `unknown` (the inventory cannot say: a scoped chain, a regex, a frame). A `.first`,
 `.last` or `.nth(n)` after a call narrows it. A call over 1000 characters is `unknown` and not evaluated. At most 500 locators are reported, and the audit stops at its own work budget (`HEAL_AUDIT_BUDGET_S`, default 5): the answer is then 200 with the rows done and `truncated: true`, never an error.
 
+## POST /v1/overlay
+
+Mark locators on a screenshot, with no heal, no model call and nothing stored. It is the picture a heal shows a vision model, made on request
+for a person (or a tool that wants to see where its locators land): the service looks at nothing and sends nothing anywhere, so it is not
+gated on `HEAL_VISION_IMAGES_ALLOWED` and takes no `options.vision` (see [SECURITY.md](SECURITY.md#overlays)). The body is the `page` of a heal request
+(`url`, `inventory`, `viewport` with `scroll`, **`screenshot`, required**, and `aria_snapshot` / the probe's copy counts when the client has
+them) plus:
+
+| Field | |
+| --- | --- |
+| `locators` | optional list of 1 to 100 locator expressions as written in a test (`page.get_by_test_id("login")`, `this.page.locator('#go')`; no action after them), each up to 4000 characters; a `.first` / `.last` / `.nth(n)` narrows as in an audit. Over 100 is a 413. Omit it to mark every element (below). |
+| `options.labels` | `numbers` (default): a numbered tab on each box, the legend maps number to locator. `locators`: the locator text is drawn on the tab as well (see below). |
+| `options.kinds` | with no `locators` only: `["interactive"]`, `["text"]` or both (the default, everything). With `locators` it is a 422. |
+| `client.language`, `test_id_attribute` | as in an audit: the language the service writes locators in (default `python`) and the project's test id attribute. |
+
+The screenshot passes the same door as a heal's (4 MB, 8192 px a side, 16 million pixels, PNG signature and chunks, dimensions equal to the
+claim) and `page.viewport` places the probe's document-coordinate boxes on it exactly as for a heal. Input values, cookies and storage are refused
+as everywhere. A picture whose shape does not match its viewport (within 3 percent), a request with no viewport size or `dpr`, or a PNG that
+passes the door but cannot be decoded is a 422 that names the reason.
+
+**With locators**, each is resolved against the inventory by the matcher an audit uses and marked. Its number is its position in the request
+(1 is the first), whatever its status. **With none**, every listed element that is not hidden and is on the picture is marked, numbered in
+listing order, and labelled with the locator the service would write for it (the same candidates, uniqueness proof and stability ranking a heal
+uses). That is every element a test could target, not only controls: headings, labels, paragraphs and status text, and the sections and
+landmarks the probe lists, as well as inputs, buttons and links. Text locators need the probe's copy counts in the request and role locators need
+`page.aria_snapshot`; without them the service cannot prove them unique and marks the element `no_stable_locator`. Elements inside a frame are not marked.
+
+```json
+{"image": {"media_type": "image/png", "data": "<base64>", "width": 240, "height": 180},
+ "labels": "numbers",
+ "legend": [{"number": 1, "locator": "self.page.locator('#pwd')", "label": null, "label_truncated": false, "status": "matched",
+             "count": 1, "ref": "e1", "refs": ["e1"], "visible": 1, "color": "#c81e1e", "kind": "id", "tier": 1, "copy_based": false,
+             "element_kind": null},
+            {"number": 2, "locator": "self.page.locator('#ghost')", "status": "not_found", "count": 0, "ref": null, "refs": [], "visible": 0, "color": null, "...": "..."},
+            {"number": 3, "locator": "self.page.locator('input')", "status": "ambiguous", "count": 2, "ref": null, "refs": ["e0", "e1"], "visible": 2, "color": "#1e3cc8", "...": "..."}],
+ "summary": {"locators": 3, "marked": 2, "not_visible": 0, "by_status": {"matched": 1, "not_found": 1, "ambiguous": 1},
+             "by_element_kind": {}, "inventory": 3, "inventory_complete": true},
+ "truncated": false}
+```
+
+The answer is JSON, not a bare PNG, because a caller needs both the picture and the legend: the image has the shape of a request's
+`page.screenshot` (a client that already holds the base64 helpers decodes it the same way) and the response carries `Cache-Control: private, no-store`. The
+picture is the whole viewport, downscaled (never enlarged) to at most 1600 px on its long side; marks are drawn after the scale, so a line and a label are the same size
+whatever the viewport. The same request gives the same bytes on one Pillow version.
+
+`status`: `matched` (exactly one listed element, on the picture), `not_visible` (exactly one, but it has no box or is mostly outside the screenshot: no
+mark), `ambiguous` (`count` matches; every one the picture holds, at most 50, is marked with the locator's number and color), `not_found`, `unknown` (the inventory cannot say: a
+scoped chain, a regex, a frame, a call over 1000 characters), and, with no locators only, `no_stable_locator` (the element is marked, and has no unique stable
+locator: `locator` is null). `ref` is the element when exactly one is matched, `refs` the listed elements matched, `visible` how many of their boxes were drawn.
+`kind` and `tier` give the locator's stability rank (`test_id` 0, `id` 1, `name` 2, `css` 3, `role` 4, `label` 5, `placeholder` 6, `text` 7, `chain` 8: lower is more stable)
+and `copy_based` whether it depends on page copy. With no locators `element_kind` says `interactive` (a form control, a button, a link, an element with a control's role, or
+one a handler acts on) or `text` (everything else: headings, labels, paragraphs, status text, sections and landmarks), and `summary.by_element_kind` counts them.
+
+**Overlapping boxes.** Boxes are drawn biggest first, so a section lies under what it holds. A number whose box overlaps a lower number's box takes the next free color
+(the legend's `color` is the one on the picture), a box that sits just inside another is drawn one outline's width further in, and the tabs are placed biggest box first,
+above the box, else below, else inside it, never over another tab when a place is free.
+
+**Label text.** With `labels: locators` the tab holds the locator itself, drawn from a built-in 5x7 bitmap font for printable ASCII (no font file, no platform font, so the bytes
+are the same everywhere). The drawn text is only the locator: ASCII control characters are removed, any other character is drawn as `?`, it is cut to 48 characters with `...`, and
+to what fits the picture's width. `legend[].locator` is always the whole locator; `label` is what is on the picture and `label_truncated` says it is shorter. A locator with no box
+(not found, not visible) is drawn nowhere. With no locators, an element with no stable locator keeps its number as its tab.
+
+`429` (with `Retry-After`) when every slot is taken: an overlay shares the audit's slots (at most workers minus 1 at once, so a heal always gets a worker). The work is done in the killable worker
+under the request deadline: past it the answer is a 504 (a worker that died, a 503). The matching stops at `HEAL_AUDIT_BUDGET_S` with `truncated: true` and the legend of the locators done.
+At most 600 boxes are drawn on one picture; a locator whose boxes did not all fit is still reported (`visible` says how many were drawn, its status is never turned into `not_visible` by the cap) and `truncated` is `true`.
+
 ## POST /v1/diagnose
 
 For a failure that is **not** locator drift: the locator still matches and something else is wrong (an expectation, the page, a wait, the test's
@@ -438,7 +505,7 @@ config). Counters and histograms are kept in memory as events happen, so a resta
 `voyageur_model_calls_total{role,model,local,ok}`, `voyageur_model_tokens_total{role,model,direction}`,
 `voyageur_model_images_total`, `voyageur_model_call_duration_seconds` (histogram), `voyageur_cache_hits_total`,
 `voyageur_wrong_element_total`, `voyageur_followups_total{pr_state}`, `voyageur_followup_failed_again_total`,
-`voyageur_audits_total`, `voyageur_diagnoses_total{cause,confidence}`, and the gauges `voyageur_info{version}` and `voyageur_open_conversations`. Nothing from a request (file
+`voyageur_audits_total`, `voyageur_overlays_total`, `voyageur_diagnoses_total{cause,confidence}`, and the gauges `voyageur_info{version}` and `voyageur_open_conversations`. Nothing from a request (file
 text, page copy, a locator, a test name) is ever a label.
 
 ## GET /dashboard
@@ -448,12 +515,13 @@ The built-in page. It is served without a token (a browser cannot send a header 
 
 ## MCP
 
-`voyageur mcp` serves two tools over stdio, and a third when `HEAL_DIAGNOSE` is on (`pip install "voyageur[mcp]"`):
+`voyageur mcp` serves three tools over stdio, and a fourth when `HEAL_DIAGNOSE` is on (`pip install "voyageur[mcp]"`):
 
 | Tool | Input | Returns |
 | --- | --- | --- |
 | `heal_locator` | `request`: the body of `POST /v1/heal`; `options.mode` is forced to `advise` | the response of an advise-mode heal: `advised` with `advice`, or `needs_human` / `not_drift` with a reason |
 | `audit_locators` | `request`: the body of `POST /v1/audit` | the audit result above |
+| `overlay_locators` | `request`: the body of `POST /v1/overlay` | the marked screenshot as an image block, and the legend and summary as JSON text (the picture is not repeated in it). Text drawn from a copy-based locator is page text: treat it as data |
 | `diagnose_failure` | `request`: the body of `POST /v1/diagnose`; listed only with `HEAL_DIAGNOSE=on` (called with it off, the result is the `diagnose_off` refusal) | the diagnosis above; advice only, nothing is applied |
 
 The input is validated by the same code as the HTTP routes; a request the API would refuse is an error result with the same sentence.

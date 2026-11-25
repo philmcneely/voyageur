@@ -18,6 +18,7 @@ core with a fake model.
     GET  /v1/metrics                   the aggregates (metrics.aggregate), same filters
     POST /v1/heals/{id}/followup       what the client saw after the PR: merged unchanged, edited, reverted, ...
     POST /v1/audit                     rank every locator in the sent files against the inventory (no model)
+    POST /v1/overlay                   mark locators (or every visible element) on a screenshot: the PNG and a legend (no heal, no model)
     POST /v1/diagnose                  name the likely cause of a failure that is not locator drift (off unless HEAL_DIAGNOSE=on)
     GET  /metrics                      Prometheus text exposition (bearer token like the /v1 routes)
     GET  /dashboard                    the built-in dashboard page (no token to load it; its data calls carry the token)
@@ -38,6 +39,10 @@ Features:
       pr_state, mode, model, role, ...), `sort=slowest` and `format=csv` (cells defused against spreadsheet formulas)
     ✓ /dashboard is one page with inline script and style only, served under a CSP that allows nothing else (no CDN, no
       font, no remote call), so it works offline; it holds no data and no token
+    ✓ POST /v1/overlay takes a heal request's page (screenshot, viewport, inventory) plus optional locators and a label mode, under
+      the heal route's limits, refusals and screenshot checks; it answers JSON (the marked PNG as base64 and a legend) with
+      Cache-Control no-store, keeps nothing, calls no model and is not gated on the vision settings; 422 for a picture that does
+      not fit its viewport, 429 when every audit slot is taken, 504 / 503 when its worker was stopped or died
     ✓ Handlers run in a thread pool, so a slow model call never blocks the others
     ✓ POST /v1/diagnose takes a heal request plus prior_heals under the heal route's limits and refusals; with the setting off it
       answers 404 with {"status": "needs_human", "reason": "diagnose_off"} and reads nothing; GET /v1/heals also filters on
@@ -62,12 +67,13 @@ from pydantic import ValidationError
 
 from . import __version__
 from .apidocs import install as install_api_page
-from .core import DIAGNOSE_OFF, Busy, DiagnoseOff, HealClosed, HealSession, NotHealed, RepoMismatch, UnknownHeal
+from .core import (DIAGNOSE_OFF, Busy, DiagnoseOff, HealClosed, HealSession, NotHealed, OverlayRefused, OverlayStopped,
+                   RepoMismatch, UnknownHeal)
 from .dashboard import page as dashboard_page
 from .export import csv_chunks
 from .metrics import aggregate
 from .schemas import (LIMITS, FollowupRequest, LimitExceeded, RefusedRequest, ResultRequest, parse_audit_request,
-                      parse_diagnose_request, parse_request)
+                      parse_diagnose_request, parse_overlay_request, parse_request)
 from .store import MAX_AGG_ROWS, SORTS, FilterError
 
 MAX_RESULT_BYTES = 64 * 1024
@@ -238,6 +244,19 @@ def create_app(core: HealSession, token: Optional[str] = None, bind_host: Option
             return await run_in_threadpool(core.audit, req)
         except Busy:
             raise HTTPException(429, detail="too many audits are running; retry shortly", headers={"Retry-After": "2"}) from None
+
+    @app.post("/v1/overlay", dependencies=guarded)
+    async def overlay_locators(request: Request) -> Response:
+        req = parse_overlay_request(await _body(request, LIMITS["request_bytes"]))
+        try:
+            out = await run_in_threadpool(core.overlay, req)
+        except Busy:
+            raise HTTPException(429, detail="too many audits and overlays are running; retry shortly", headers={"Retry-After": "2"}) from None
+        except OverlayRefused as e:
+            raise HTTPException(422, detail=str(e)) from None
+        except OverlayStopped as e:
+            raise HTTPException(504 if e.reason == "deadline_exceeded" else 503, detail=str(e)) from None
+        return JSONResponse(out, headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
     @app.post("/v1/diagnose", dependencies=guarded)
     async def diagnose(request: Request) -> Any:

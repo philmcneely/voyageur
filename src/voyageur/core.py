@@ -44,6 +44,8 @@ Features:
     ✓ followup(): what a client saw after the PR (merged unchanged, edited, reverted, open, closed unmerged), whether the
       healed locator failed again, runs and days since; only a heal that ended `healed` takes one
     ✓ audit(): the locators of the sent files ranked against the inventory (audit.py), no model call
+    ✓ overlay(): locators marked on the sent screenshot (marks.py), no model call, no record, nothing kept; it shares the audit's
+      slots and runs in the killable worker under the request deadline
     ✓ diagnose(): a failure that is not locator drift (triage says not_drift or needs_human) read by one text call that names a
       likely cause, with evidence and at most one suggested edit (diagnose.py). Off unless HEAL_DIAGNOSE is on (DiagnoseOff);
       located drift is `not_applicable`; it makes no try rounds, takes no result, is never cached and never changes the heal
@@ -86,10 +88,11 @@ from .llm import Endpoint, endpoint_from_env
 from .locator_policy import RANK, Written, kind_of, page_language
 from .frames import HopHeal, Scope
 from .audit import empty_result, run_audit
+from .marks import run_overlay
 from .diagnose import DIAG_MAX_TOKENS, diagnose_input, interpret, run_diagnosis
 from .pick import run_pick
 from .schemas import (LIMITS, Advice, AuditRequest, Candidate, DiagnoseRequest, DiagnoseResponse, Diagnosis, Expect,
-                      FollowupRequest, HealRequest, HealResponse, ModelUsage, ResultRequest, Usage)
+                      FollowupRequest, HealRequest, HealResponse, ModelUsage, OverlayRequest, ResultRequest, Usage)
 from .screenshot import MAX_BYTES, MAX_PIXELS, MAX_SIDE
 from .store import DURABLE_DAYS, Store
 from .telemetry import Telemetry
@@ -133,6 +136,30 @@ class UnknownHeal(KeyError):
 
 class HealClosed(RuntimeError):
     """The heal already has its final answer; a result cannot reopen it."""
+
+
+OVERLAY_WHY = {
+    "viewport_mismatch": "the screenshot's shape does not match the viewport it was taken in",
+    "no_viewport": "the request has no viewport size or device pixel ratio to place the boxes with",
+    "undecodable": "the screenshot could not be decoded",
+}
+
+
+class OverlayRefused(ValueError):
+    """POST /v1/overlay: the picture cannot be marked. `reason` is a code (a key of OVERLAY_WHY, or overlay_error); the message
+    is a plain sentence that names the rule and never holds image data."""
+
+    def __init__(self, reason: str):
+        super().__init__(OVERLAY_WHY.get(reason, "the screenshot could not be marked"))
+        self.reason = reason
+
+
+class OverlayStopped(RuntimeError):
+    """The worker for an overlay was stopped (`deadline_exceeded`) or died (`worker_failed`)."""
+
+    def __init__(self, reason: str):
+        super().__init__(WHY.get(reason, reason))
+        self.reason = reason
 
 
 class DiagnoseOff(RuntimeError):
@@ -360,6 +387,26 @@ class HealSession:
         finally:
             self._audit_slots.release()
         self.telemetry.inc("audits_total")
+        return out
+
+    def overlay(self, req: OverlayRequest) -> Dict[str, Any]:
+        """Mark locators on the sent screenshot (marks.py): no model, no heal, no record, nothing kept. It takes one of the same
+        slots as an audit (a heal must always be able to get a worker) and runs in a worker under the request deadline, with
+        the audit's work budget for the matching. Busy when every slot is taken; OverlayRefused when the picture cannot be
+        marked (it does not fit its viewport, or cannot be decoded); StageFailed's reason as OverlayStopped when the worker
+        had to be stopped."""
+        if not self._audit_slots.acquire(blocking=False):
+            raise Busy("too many audits and overlays are running")
+        try:
+            try:
+                out = self._budget().run(run_overlay, req, self.settings.audit_budget_s)
+            except StageFailed as exc:
+                raise OverlayStopped(exc.reason) from None
+        finally:
+            self._audit_slots.release()
+        if "refused" in out:
+            raise OverlayRefused(out["refused"])
+        self.telemetry.inc("overlays_total")
         return out
 
     def followup(self, heal_id: str, req: FollowupRequest) -> Dict[str, Any]:
@@ -940,4 +987,5 @@ class HealSession:
                             ended_at=ended_at)
 
 
-__all__ = ["HealSession", "UnknownHeal", "HealClosed", "NotHealed", "Busy", "RepoMismatch", "DiagnoseOff", "is_local"]
+__all__ = ["HealSession", "UnknownHeal", "HealClosed", "NotHealed", "Busy", "RepoMismatch", "DiagnoseOff", "OverlayRefused",
+           "OverlayStopped", "is_local"]

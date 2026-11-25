@@ -11,6 +11,7 @@ from voyageur import cli
 from voyageur.mcp_server import ToolRefused, audit_locators, heal_locator
 from tests.unit.scenarios import FakeModel, request, session
 from tests.unit.test_audit import body as audit_body
+from tests.unit.test_overlay_endpoint import body as overlay_body
 
 pytestmark = pytest.mark.unit
 SRC = str(Path(__file__).resolve().parents[2] / "src")
@@ -91,7 +92,7 @@ def test_the_server_lists_both_tools_and_answers_over_the_sdk():
             bad = e
         return tools, out, bad
     tools, out, bad = asyncio.run(go())
-    assert {t.name for t in tools} == {"heal_locator", "audit_locators"}
+    assert {t.name for t in tools} == {"heal_locator", "audit_locators", "overlay_locators"}
     assert all(t.description and (getattr(t, "input_schema", None) or t.inputSchema)["properties"]["request"] for t in tools)
     assert "advised" in json.dumps(out.model_dump(mode="json"), default=str)
     assert bad is not None and "schema" in str(bad)
@@ -113,9 +114,12 @@ def test_over_stdio_a_client_lists_the_tools_and_calls_both(tmp_path):
                 healed = await session_.call_tool("heal_locator", {"request": advise_body()})
                 audited = await session_.call_tool("audit_locators", {"request": audit_body()})
                 refused = await session_.call_tool("heal_locator", {"request": {"cookies": []}})
-                return tools, healed, audited, refused
-    tools, healed, audited, refused = asyncio.run(asyncio.wait_for(go(), 60))
-    assert sorted(t.name for t in tools.tools) == ["audit_locators", "heal_locator"]
+                overlaid = await session_.call_tool("overlay_locators", {"request": overlay_body(["self.page.locator('#user')"])})
+                return tools, healed, audited, refused, overlaid
+    tools, healed, audited, refused, overlaid = asyncio.run(asyncio.wait_for(go(), 60))
+    assert not overlaid.is_error and overlaid.content[0].type == "image" and overlaid.content[0].mime_type == "image/png"
+    assert json.loads(overlaid.content[1].text)["legend"][0]["status"] == "matched"
+    assert sorted(t.name for t in tools.tools) == ["audit_locators", "heal_locator", "overlay_locators"]
     assert not healed.is_error and json.loads(healed.content[0].text)["status"] == "advised"
     assert not audited.is_error and json.loads(audited.content[0].text)["summary"]["upgradeable"] == 5
     assert refused.is_error and "cookies" in refused.content[0].text
@@ -165,6 +169,6 @@ def test_the_server_lists_diagnose_failure_only_when_diagnose_is_on():
 
     async def names(core):
         return {t.name for t in await build_server(core).list_tools()}
-    assert asyncio.run(names(session(FakeModel()))) == {"heal_locator", "audit_locators"}
+    assert asyncio.run(names(session(FakeModel()))) == {"heal_locator", "audit_locators", "overlay_locators"}
     assert asyncio.run(names(session(FakeModel(), diagnose_enabled=True))) == {"heal_locator", "audit_locators",
-                                                                              "diagnose_failure"}
+                                                                              "overlay_locators", "diagnose_failure"}

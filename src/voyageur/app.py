@@ -35,7 +35,9 @@ Features:
     ✓ 404 for an unknown heal, 409 for a result sent to a heal that already has its answer
     ✓ No route fetches a URL, opens a browser or runs a program: the page URL in a request is only ever recorded as a path
     ✓ GET /v1/heals takes a filter for every aggregate (outcome, reason, settled_at, tier_movement, run, repo, framework,
-      pr_state, mode, model, role, ...), `sort=slowest` and `format=csv` (cells defused against spreadsheet formulas)
+      pr_state, mode, model, role, verify_passed, ...), `sort=slowest` and `format=csv` (cells defused against spreadsheet
+      formulas); GET /v1/metrics takes the same `model` filter (a heal matches when any of its model calls used that model) and
+      reports outcomes by model with a drill link on every number
     ✓ /dashboard is one page with inline script and style only, served under a CSP that allows nothing else (no CDN, no
       font, no remote call), so it works offline; it holds no data and no token
     ✓ Handlers run in a thread pool, so a slow model call never blocks the others
@@ -269,7 +271,8 @@ def create_app(core: HealSession, token: Optional[str] = None, bind_host: Option
               wrong_element: Optional[str] = None, budget_exhausted: Optional[str] = None,
               cache_hit: Optional[str] = None, branch: Optional[str] = None, failed_again: Optional[str] = None,
               drift: Optional[str] = None, durability: Optional[str] = None, confidence: Optional[str] = None,
-              patch_suggested: Optional[str] = None, downgraded: Optional[str] = None, sort: str = "newest",
+              patch_suggested: Optional[str] = None, downgraded: Optional[str] = None, verify_passed: Optional[str] = None,
+              sort: str = "newest",
               format: str = "json", from_: Optional[str] = Query(None, alias="from"), to: Optional[str] = None,
               limit: int = Query(100, ge=1, le=MAX_AGG_ROWS), offset: int = Query(0, ge=0, le=MAX_INT)) -> Any:
         if format not in ("json", "csv"):
@@ -285,7 +288,7 @@ def create_app(core: HealSession, token: Optional[str] = None, bind_host: Option
             model=model, role=role, local=local, with_calls=with_calls, led_to_fix=led_to_fix,
             wrong_element=wrong_element, budget_exhausted=budget_exhausted, cache_hit=cache_hit, branch=branch,
             failed_again=failed_again, drift=drift, durability=durability, confidence=confidence,
-            patch_suggested=patch_suggested, downgraded=downgraded)
+            patch_suggested=patch_suggested, downgraded=downgraded, verify_passed=verify_passed)
         since, until = _when(from_, "from"), _when(to, "to")
         if format == "csv":
             core.store.count_heals(since, until, **found)            # a bad filter is a 422 now, not an error mid-stream
@@ -304,10 +307,11 @@ def create_app(core: HealSession, token: Optional[str] = None, bind_host: Option
     @app.get("/v1/metrics", dependencies=guarded)
     def metrics(repo: Optional[str] = None, framework: Optional[str] = None, language: Optional[str] = None,
                 page_language: Optional[str] = None, run: Optional[str] = None, run_id: Optional[str] = None,
-                from_: Optional[str] = Query(None, alias="from"), to: Optional[str] = None) -> Dict[str, Any]:
+                model: Optional[str] = None, from_: Optional[str] = Query(None, alias="from"),
+                to: Optional[str] = None) -> Dict[str, Any]:
         return aggregate(core.store, core.settings.prices, _when(from_, "from"), _when(to, "to"), repo=repo,
                          framework=framework, language=language, page_language=page_language,
-                         run_id=run_id if run_id is not None else run)
+                         run_id=run_id if run_id is not None else run, model=model)
 
     @app.get("/metrics", dependencies=guarded)
     def prometheus() -> Response:

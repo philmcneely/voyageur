@@ -67,7 +67,8 @@ _EQ = ("repo", "framework", "language", "settled_at", "page_language", "test_id"
 # filters that take one value or several separated by commas ("edited,reverted")
 _ONE_OF = ("outcome", "reason", "tier_movement", "pr_state", "mode")
 # filters that are a yes or no (1, 0, true, false) on a column
-_FLAGS = ("drift", "branch", "budget_exhausted", "cache_hit", "failed_again", "below_floor", "patch_suggested", "downgraded")
+_FLAGS = ("drift", "branch", "budget_exhausted", "cache_hit", "failed_again", "below_floor", "patch_suggested", "downgraded",
+          "verify_passed")
 # filters with their own meaning: wrong_element (a try hit the wrong element), with_calls (a model call was made),
 # led_to_fix (healed and not edited, reverted or closed unmerged), model / role / local (a call matches), durability
 _SPECIAL = ("wrong_element", "with_calls", "led_to_fix", "model", "role", "local", "durability")

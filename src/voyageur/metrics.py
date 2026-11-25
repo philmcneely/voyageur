@@ -25,6 +25,16 @@ are left out of every rate below, so asking for advice never dilutes the success
                           failed again (heals still younger than that are `pending`)
     escaped_wrong_heals   healed heals a human edited or reverted: the target is 0
     wrong_element_catches candidates verify stopped for landing on the wrong element before they reached a PR
+    outcomes_by_model     the same outcomes split by the model that made a call in the heal (below)
+
+Outcomes by model (`outcomes_by_model`, one row per model, for comparing models over the same kind of failures): a heal belongs to
+every model that made a call in it, so a heal that used a text model and a vision model is counted once under each and the rows
+add up to more than the heals (`outcomes_by_model_note` says so). A row holds the heals, `healed`, `verified_heals` (healed, and
+the exact test went green after the patch; the rest of healed were kept because the re-run failed only on a later statement),
+`needs_human` and its reasons, the wrong-element catches, and the tokens and cost of that model's own calls (`cost` is None
+without a price for it). Heals that made no model call (a fingerprint match, a triage answer) are in `outcomes_without_model`.
+The `model` filter keeps the heals in which any call used that model, with all of their calls (so the totals above count the other
+models' calls in those heals), and `outcomes_by_model` then holds that model's row alone.
 
 A figure with nothing to divide by is None, never 0 and never an error.
 
@@ -35,7 +45,9 @@ Features:
     ✓ `diagnose`: requests, answers by status, causes and confidences, edits suggested, heals advised to revert, answers the service
       downgraded, model calls and tokens; each with a drill link, and none of them in a heal rate
     ✓ `drill`: for each number, the query string for GET /v1/heals that lists the heals behind it
-    ✓ Optional filters: repo, framework, language, page language, run, time window
+    ✓ `outcomes_by_model`: heals, verified heals, needs_human by reason, wrong-element catches, tokens and cost per model, each
+      number with a drill link (`drill.by_model`); heals with no model call are reported apart
+    ✓ Optional filters: repo, framework, language, page language, run, model, time window
 
 Environment Variables:
     None (prices per model come from config.ServiceSettings.prices, HEAL_MODEL_PRICES).
@@ -165,6 +177,37 @@ def aggregate(store: Store, prices: Optional[Mapping[str, Tuple[float, float]]] 
     languages = Counter(h["page_language"] for h in healed if h["page_language"])
     frameworks = Counter(h["framework"] for h in heals if h["framework"])
     client_languages = Counter(h["language"] for h in heals if h["language"])
+    models_of: Dict[str, set] = {}                     # heal id -> the models that made a call in it
+    per_model: Dict[str, Dict[str, int]] = {}
+    for c in calls:
+        models_of.setdefault(c["heal_id"], set()).add(c["model"])
+        mine_calls = per_model.setdefault(c["model"], {"model_calls": 0, "input_tokens": 0, "output_tokens": 0})
+        mine_calls["model_calls"] += 1
+        mine_calls["input_tokens"] += c["input_tokens"]
+        mine_calls["output_tokens"] += c["output_tokens"]
+    heals_of: Dict[str, List[Dict[str, Any]]] = {m: [] for m in per_model}
+    no_model: List[Dict[str, Any]] = []
+    for h in heals:
+        used = models_of.get(h["heal_id"])
+        for m in used or ():
+            heals_of[m].append(h)
+        if not used:
+            no_model.append(h)
+    by_model_rows = []
+    for m in sorted(heals_of):
+        if filters.get("model") not in (None, m):          # a model filter answers for that model: another row's number would
+            continue                                       # count only the heals it shared with it, and its link would list more
+        mine = heals_of[m]
+        mine_healed = [h for h in mine if h["outcome"] == "healed"]
+        mine_reasons = Counter(h["reason"] or "unknown" for h in mine if h["outcome"] == "needs_human")
+        by_model_rows.append({
+            "model": m, "heals": len(mine), "healed": len(mine_healed),
+            "verified_heals": sum(1 for h in mine_healed if h["verify_passed"]),
+            "needs_human": sum(mine_reasons.values()), "needs_human_by_reason": dict(mine_reasons),
+            "success_rate": _ratio(len(mine_healed), sum(1 for h in mine if h["drift"])),
+            "wrong_element_catches": sum(h["wrong_element"] or 0 for h in mine),
+            "heals_with_wrong_element": sum(1 for h in mine if h["wrong_element"]),
+            **per_model[m], "cost": _cost({m: per_model[m]}, lambda k: k, prices)})
     return {
         "truncated": len(every) >= max_rows,
         "failures_seen": len(heals), "locator_drift": drift, "not_drift": len(heals) - drift,
@@ -193,6 +236,10 @@ def aggregate(store: Store, prices: Optional[Mapping[str, Tuple[float, float]]] 
                           for (r, m, loc), v in sorted(by_model.items())],
         "cost_by_role": [{"role": r, **v, "cost": _cost({k: x for k, x in role_models.items() if k[0] == r},
                                                         lambda k: k[1], prices)} for r, v in sorted(by_role.items())],
+        "outcomes_by_model": by_model_rows,
+        "outcomes_by_model_note": "a heal that used two models (a text pick and a vision pick) is counted under each",
+        "outcomes_without_model": {"heals": len(no_model), "healed": sum(1 for h in no_model if h["outcome"] == "healed"),
+                                   "needs_human": sum(1 for h in no_model if h["outcome"] == "needs_human")},
         "local_token_share": _ratio(local_tokens, tokens), "cloud_token_share": _ratio(tokens - local_tokens, tokens),
         "budget_exhausted": sum(1 for h in heals if h["budget_exhausted"]),
         "latency": {"heal_ms_p50": _percentile(durations, 0.5), "heal_ms_p95": _percentile(durations, 0.95),
@@ -266,6 +313,16 @@ def aggregate(store: Store, prices: Optional[Mapping[str, Tuple[float, float]]] 
             "hot_spots": {f"{f}|{k}": _q(mode="heal", file=f, locator_key=k) for (f, k), _ in hot},
             "cost_by_model": {f"{r}|{m}": _q(mode="heal", role=r, model=m) for (r, m, _), _v in by_model.items()},
             "cost_by_role": {r: _q(mode="heal", role=r) for r in by_role},
+            "by_model": {r["model"]: {
+                "heals": _q(mode="heal", model=r["model"]),
+                "healed": _q(mode="heal", model=r["model"], outcome="healed"),
+                "verified_heals": _q(mode="heal", model=r["model"], outcome="healed", verify_passed=1),
+                "needs_human": _q(mode="heal", model=r["model"], outcome="needs_human"),
+                "needs_human_by_reason": {reason: _q(mode="heal", model=r["model"], outcome="needs_human", reason=reason)
+                                          for reason in r["needs_human_by_reason"]},
+                "wrong_element_catches": _q(mode="heal", model=r["model"], wrong_element=1),
+                "model_calls": _q(mode="heal", model=r["model"])} for r in by_model_rows},
+            "outcomes_without_model": _q(mode="heal", with_calls=0),
             "cost_local": _q(mode="heal", local=1), "cost_cloud": _q(mode="heal", local=0, with_calls=1),
         },
     }

@@ -61,6 +61,7 @@ from .screenshot import png_size
 from .stages import write_for
 
 MAX_BOXES_PER_LOCATOR = 50       # boxes drawn for one ambiguous locator (its `count` still says how many it matches)
+MAX_MARKS = 600                  # boxes drawn on one picture, in all: placing and coloring them is quadratic in this
 _KIND_NAME = {"testid": "test_id"}
 log = logging.getLogger("voyageur")
 
@@ -154,7 +155,7 @@ def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[s
                     break
                 entry, named = _resolve(inv, number, expr)
                 legend.append(entry)
-                marks.extend(Mark(number, _box(h)) for h in named)
+                marks.extend(Mark(number, _box(h)) for h in named[:max(0, MAX_MARKS - len(marks))])
         else:
             wanted = set(req.options.kinds or ELEMENT_KINDS)
             shown = [e for e in inv.elements if not e.get("hidden") and element_kind(e) in wanted]

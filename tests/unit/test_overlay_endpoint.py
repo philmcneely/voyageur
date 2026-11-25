@@ -525,6 +525,15 @@ def test_the_work_budget_stops_the_matching_and_says_so():
     assert out["truncated"] is True
 
 
+def test_the_boxes_drawn_on_one_picture_are_bounded_whatever_the_locators_match():
+    from voyageur.marks import MAX_MARKS
+    inv = [{"ref": f"e{i}", "tag": "input", "attrs": {"name": f"n{i}"}, "box": {"x": 5 + (i % 25) * 38, "y": 5 + (i // 25) * 28, "w": 30, "h": 20}}
+           for i in range(400)]
+    out = run(locators=["page.locator('input')"] * 100, inventory=inv, w=1000, h=600, labels="locators")
+    assert sum(e["visible"] for e in out["legend"]) == MAX_MARKS and len(out["legend"]) == 100
+    assert all(e["count"] == 400 and len(e["refs"]) == 50 for e in out["legend"])
+
+
 def test_the_number_of_matches_marked_per_locator_is_bounded():
     inv = [{"ref": f"e{i}", "tag": "input", "attrs": {"name": f"n{i}"}, "box": {"x": 5 + (i % 25) * 38, "y": 5 + (i // 25) * 28, "w": 30, "h": 20}}
            for i in range(200)]

@@ -392,7 +392,7 @@ def render_marks(png: bytes, marks: Sequence[Mark], viewport: Tuple[Optional[flo
     for i in order:
         m, rect = rects[i]
         # a box that sits just inside another (a button around its own text) is drawn one outline's width further in
-        depth = sum(1 for o in outer if _snug(o, rect, 2 * g))
+        depth = sum(1 for o in outer if _snug(o, rect, 2 * g)) if len(rects) <= MAX_COLORED_BOXES else 0
         _outline(draw, _PALETTE[colors[m.number]], _inset(rect, depth * g), g)
         outer.append(rect)
     placed: List[Tuple[int, int, int, int]] = []

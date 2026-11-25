@@ -20,6 +20,8 @@ Features:
       byLanguage(receiver, { en: ..., fr: ... }) in TypeScript (no await, so it fits a getter or a field); it returns the entry for the page's language and
       the first entry (the original copy) for any other
     ✓ Language keys are plain two or three letter subtags only: the key is written into the test file
+    ✓ A heading recorded as `h2` with no role is the heading of level 2 it was, so its old-language locator (role + name + level) can be
+      built from the recording
     ✓ The page language comes from the caller (html lang, then browser locale, then Content-Language), never from words
       on the page
 
@@ -32,6 +34,7 @@ Author: PMAC
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+from .inventory import heading_level
 from .locator_policy import _LANG, ElementFacts, Written, candidates, copy_based, page_language
 from .locator_steps import chain_to_data, try_parse
 
@@ -62,8 +65,10 @@ def _from_fingerprint(kind: str, fingerprint: Optional[Dict[str, Any]], language
     def s(key: str) -> Optional[str]:
         v = fingerprint.get(key)
         return v if isinstance(v, str) and v else None
-    facts = ElementFacts(tag=s("tag") or "", role=s("role"), accessible_name=s("name") or s("label"), label=s("label"),
-                         placeholder=s("placeholder"), text=s("text"))
+    level = heading_level({"tag": s("tag") or "", "role": s("role") or ""})   # a recorded h2 is a heading of level 2 whatever role was kept
+    facts = ElementFacts(tag=s("tag") or "", role=s("role") or ("heading" if level else None),
+                         accessible_name=s("name") or s("label"), label=s("label"), placeholder=s("placeholder"),
+                         text=s("text"), level=level)
     found = candidates(facts, language, receiver, (kind,))
     return found[0] if found else None
 

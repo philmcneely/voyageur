@@ -21,6 +21,8 @@ matches zero listed elements is rejected, so a heal cannot swap one guess for an
 Features:
     ✓ Static, aria-snapshot and inventory counting, each optional; nothing here touches a page, a browser or the
       network
+    ✓ aria_count honors getByRole's `level` (read from the snapshot's `[level=2]`) and reads `exact` / `level` only outside the
+      call's quoted strings, so a name that holds the words "level=3" or "exact=True" is a name
     ✓ aria_count reads role nodes and names only to count them; text after a node's colon (which can be an input's
       value) is used only to name a row-like node and is never returned or stored
     ✓ `Uniqueness(live=None)` accepts a counter a caller supplies (a client that has a real page can verify its own
@@ -44,7 +46,7 @@ from . import rx
 from .bounds import MAX_ARIA_CHARS, MAX_ARIA_LINE_CHARS, MAX_EXPR_CHARS, lines_ok, too_long
 from .failing import CALL_WINDOW, balanced_end
 from .locator_steps import try_parse
-from .locators import LOCATOR_SPLIT_RE
+from .locators import LOCATOR_SPLIT_RE, strip_strings
 from .redact import role_line
 
 if TYPE_CHECKING:  # inventory.py imports this module
@@ -103,6 +105,9 @@ def broad_reason(expr: str) -> Optional[str]:
 _ROLE_HEAD_RE = re.compile(r"""(?:getByRole|get_by_role)\(\s*(['"])(\w+)\1\s*""")
 _NAME_RE = re.compile(r"""name\s*[:=]\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|/((?:[^/\\]|\\.)+)/([a-z]*))""")
 _EXACT_RE = re.compile(r"exact\s*[:=]\s*(?:true|True)")
+_LEVEL_RE = re.compile(r"\blevel\s*[:=]\s*(\d{1,2})\b")
+# a heading's line in the snapshot: its quoted name, then the attributes Playwright prints after it ([level=2])
+_HEADING_LEVEL_RE = re.compile(r"^\s*- heading\b(?: \"(?:[^\"\\]|\\.)*\")?[^:]*?\[level=(\d{1,2})\]")
 _NTH_RE = re.compile(r"\.nth\(\s*(\d+)\s*\)")
 _NARROWING_TAIL_RE = re.compile(r"(?:\.(?:first|last)(?:\(\))?|\.nth\(\s*\d+\s*\))*")
 
@@ -122,9 +127,17 @@ class _Pending:
     open: bool = True
 
 
+def role_level(opts: str) -> Optional[int]:
+    """The `level` a getByRole call asks for (`level=2`, `level: 2`), read outside its quoted strings: a name that holds the
+    words "level=3" is a name. None when the call names no level."""
+    m = _LEVEL_RE.search(strip_strings(opts))
+    return int(m.group(1)) if m else None
+
+
 def _nodes(yaml_text: str) -> List[Dict[str, str]]:
     """Role nodes of an aria snapshot. One pass with a stack of open unnamed name-from-content nodes: each node's own
-    name / text is appended to every open ancestor that is still short of the cap (linear in the snapshot)."""
+    name / text is appended to every open ancestor that is still short of the cap (linear in the snapshot). A heading
+    node also carries its `level` (as text; "" when the snapshot prints none)."""
     out: List[Dict[str, str]] = []
     open_: List[_Pending] = []
     hungry: List[_Pending] = []             # the open entries still under the cap: only these are appended to
@@ -145,7 +158,8 @@ def _nodes(yaml_text: str) -> List[Dict[str, str]]:
                 pending.parts.extend(text)
                 pending.length += add
             hungry = [p for p in hungry if p.open and p.length < _NAME_CAP]   # full or closed: never visited again
-        out.append({"role": role, "name": name})
+        level = _HEADING_LEVEL_RE.match(role_line(line)) if role == "heading" else None
+        out.append({"role": role, "name": name, "level": level.group(1) if level else ""})
         if not name and role in _NAME_FROM_CONTENT:
             entry = _Pending(indent, len(out) - 1, [inline] if inline else [], len(inline))
             open_.append(entry)
@@ -192,8 +206,11 @@ def aria_count(expr: str, yaml_text: str) -> Optional[int]:
     if "re.compile" in opts:
         return None                                           # a Python regex name: not evaluated here
     nm = _NAME_RE.search(opts)
-    exact = bool(_EXACT_RE.search(opts))
+    exact = bool(_EXACT_RE.search(strip_strings(opts)))       # an option, never the words of a name that look like one
+    level = role_level(opts)
     nodes = [n for n in _nodes(yaml_text) if n["role"] == role]
+    if level is not None:
+        nodes = [n for n in nodes if n["level"] == str(level)]
     if nm:
         if nm.group(3) is not None:
             try:

@@ -267,13 +267,13 @@ def test_with_no_locators_headings_labels_status_text_and_named_sections_are_mar
     assert all(e["status"] == "matched" and e["locator"] for e in legend), [e["locator"] for e in legend]
     assert out["summary"]["by_element_kind"] == {"text": 4, "interactive": 3} and out["summary"]["marked"] == 7
     assert legend[0]["locator"] == 'page.get_by_role("region", name="Account", exact=True)'
-    assert legend[1]["locator"] == 'page.get_by_text("Welcome back", exact=True)' and legend[4]["kind"] == "text"
+    assert legend[1]["locator"] == 'page.get_by_role("heading", name="Welcome back", level=1, exact=True)' and legend[4]["kind"] == "text"
     assert legend[2]["locator"] == "page.locator(\"label[for='user']\")"
 
 
 def test_each_legend_entry_states_the_stability_rank_of_its_locator():
     legend = run_overlay(parse_overlay_request(account()))["legend"]
-    assert [(e["kind"], e["tier"]) for e in legend] == [("role", 4), ("text", 7), ("css", 3), ("id", 1), ("text", 7), ("role", 4),
+    assert [(e["kind"], e["tier"]) for e in legend] == [("role", 4), ("role", 4), ("css", 3), ("id", 1), ("text", 7), ("role", 4),
                                                         ("role", 4)]
     assert [e["copy_based"] for e in legend] == [True, True, False, False, True, True, True]
 

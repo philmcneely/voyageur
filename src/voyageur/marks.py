@@ -24,6 +24,9 @@ that wants to see where its locators land); the service itself looks at nothing 
                     `options.kinds` narrows the set (default both). An element with no unique stable locator is marked all the
                     same, status no_stable_locator, so a brittle spot is visible. The writer proves a text locator from the
                     probe's copy counts and a role locator from `page.aria_snapshot`: a client that sends neither gets fewer
+                    locators, and each element left without one says why (`reason`, `why`: what the request lacked, never page
+                    copy). A heading is written as role + name + level, a paragraph or plain label as exact text, and only when
+                    nothing stable (a test id, an id, a name, a plain attribute) names the element
 
 Labels (`options.labels`): `numbers` draws the mark's number and the legend ties it to the locator; `locators` draws the locator
 itself (overlay.clean_label: ASCII only, control characters removed, at most 48 characters, and no wider than the picture) and
@@ -33,7 +36,7 @@ says it is shorter). Boxes that overlap (a section and what it holds) get differ
 Features:
     ✓ run_overlay(): a module-level function over a parsed request, so a killable worker runs it under the request deadline
     ✓ The legend of every request: number, locator, label, status, count, ref(s), how many boxes were drawn, color, kind, tier
-      (the locator's stability rank), copy_based and, with no locators sent, element_kind
+      (the locator's stability rank), copy_based and, with no locators sent, element_kind and, for an element with no locator, reason and why
     ✓ Bounded: at most 50 boxes per locator, 600 on the picture, 100 locators (schemas), 500 elements; the work budget
       (HEAL_AUDIT_BUDGET_S) ends the matching with `truncated` true and the legend of the locators done, never an error; a
       locator whose boxes were not all drawn for want of room (the 600) also sets `truncated` and is never reported not_visible
@@ -94,11 +97,12 @@ def _box(el: Dict[str, Any]) -> Optional[Tuple[float, float, float, float]]:
 
 
 def _entry(number: int, locator: Optional[str], status: str, count: Optional[int], refs: List[str], kind: Optional[str] = None,
-           copy_based: bool = False) -> Dict[str, Any]:
+           copy_based: bool = False, reason: Optional[str] = None, why: Optional[str] = None) -> Dict[str, Any]:
     return {"number": number, "locator": locator, "label": None, "status": status, "count": count,
             "ref": refs[0] if len(refs) == 1 and count == 1 else None, "refs": refs, "visible": 0, "color": None,
             "label_truncated": False, "element_kind": None,
-            "kind": _KIND_NAME.get(kind, kind) if kind else None, "tier": RANK[kind] if kind else None, "copy_based": copy_based}
+            "kind": _KIND_NAME.get(kind, kind) if kind else None, "tier": RANK[kind] if kind else None, "copy_based": copy_based,
+            "reason": reason, "why": why}
 
 
 def _resolve(inv: Inventory, number: int, expr: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
@@ -123,8 +127,11 @@ def _written(inv: Inventory, number: int, el: Dict[str, Any], language: str, tes
         res = write_for(inv, el["ref"], language, "page", "chain", test_id_attribute, "")
     except Exception:                                    # a shape the writer cannot take is an element with no locator
         res = None
-    if res is None or not res.candidates:
-        return _entry(number, None, "no_stable_locator", 1, [el["ref"]])
+    if res is None:
+        return _entry(number, None, "no_stable_locator", 1, [el["ref"]], reason="unwritable",
+                      why="the writer could not take this element's shape")
+    if not res.candidates:                               # what the request lacked to prove a copy locator, not a guess at one
+        return _entry(number, None, "no_stable_locator", 1, [el["ref"]], reason=res.gap or "nothing_stable", why=res.why or None)
     best = res.candidates[0]
     return _entry(number, best.code[language], "matched", 1, [el["ref"]], best.kind, best.copy_based)
 

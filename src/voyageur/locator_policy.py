@@ -34,6 +34,11 @@ Features:
       through the chain parser and the replacement validator before it is returned
     ✓ render_chain(): a parsed chain written out as code in either client language (None when the language has no spelling
       of it: a regex literal in Python), so a locator the test already holds can be offered in both
+    ✓ Text elements (headings, labels, paragraphs, list items, landmarks) are written like any element: a stable attribute first, else
+      role + accessible name (a heading with its `level`, from its tag; a landmark an author named, by that name and never its copy;
+      never a role for a paragraph, list item or plain label, whose content is no accessible name), else exact text. A copy
+      locator is kept only when the request proves it unique; with none left, WriteResult.gap / why say what the request lacked
+      (proof_gap: no aria snapshot, no copy counts, an inventory the probe cut, copy held by several elements)
     ✓ parse_order(): a configurable order, validated against the known kinds
     ✓ page_language(): the page's language from <html lang>, else the browser locale, else Content-Language
     ✓ locale_branch(): a copy literal that differs by page language becomes a per-language entry, decoded by a plain
@@ -66,7 +71,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .bounds import too_long
 from .element_facts import subject_tag
-from .inventory import _role_of
+from .inventory import _NAMED_ROLE, _role_of, heading_level
 from .locator_steps import PY, TS, Chain, Regex, chain_to_data, try_parse
 from .locators import validate_replacement
 
@@ -99,6 +104,7 @@ class ElementFacts:
     data_attrs: Tuple[Tuple[str, str], ...] = ()      # plain data-* attributes that name the element (a css candidate)
     role_attr: Optional[str] = None                   # the explicit role attribute (not the role the tag implies)
     label_for: Optional[str] = None                   # a label's `for`: the id of the control it names (a css candidate)
+    level: Optional[int] = None                       # a heading's level (h2 is 2) when the tag says it, else None: written beside role + name
 
 
 # Shapes framework code generates: React useId (":r1:"), library prefixes with a counter, long digit runs (counters,
@@ -354,11 +360,15 @@ def candidates(facts: ElementFacts, language: str, receiver: str = "page",
         elif kind == "text" and facts.text:
             out.append(f"{receiver}.get_by_text({q(facts.text)}, exact=True)" if py
                        else f"{receiver}.getByText({q(facts.text)}, {{ exact: true }})")
-        elif kind == "role" and facts.role and facts.accessible_name:
+        elif kind == "role" and facts.role and facts.accessible_name and facts.role.lower() not in _OPAQUE_ROLES:
+            # a heading's level is part of what it is: written when the tag says it, so `h2 Profil` is not `h3 Profil`
+            level = facts.level if facts.role.lower() == "heading" else None
             if py:
-                out.append(f"{receiver}.get_by_role({q(facts.role)}, name={q(facts.accessible_name)}, exact=True)")
+                out.append(f"{receiver}.get_by_role({q(facts.role)}, name={q(facts.accessible_name)}"
+                           f"{f', level={level}' if level else ''}, exact=True)")
             else:
-                out.append(f"{receiver}.getByRole({q(facts.role)}, {{ name: {q(facts.accessible_name)}, exact: true }})")
+                out.append(f"{receiver}.getByRole({q(facts.role)}, {{ name: {q(facts.accessible_name)}"
+                           f"{f', level: {level}' if level else ''}, exact: true }})")
         elif kind in ("label", "placeholder"):
             value = facts.label if kind == "label" else facts.placeholder
             if value:
@@ -690,11 +700,14 @@ class Written:
 @dataclass
 class WriteResult:
     """The candidates best first; `below_floor` says every one of them sits under the broken locator's tier (nothing at
-    or above it was unique); `reason` is "no_stable_locator" when there are none."""
+    or above it was unique); `reason` is "no_stable_locator" when there are none, and `gap` / `why` say what the request lacked
+    to prove a copy-based locator unique (or that the element has nothing to name it by)."""
     candidates: List[Written]
     below_floor: bool = False
     floor_kind: str = "chain"
     reason: str = ""
+    gap: str = ""             # with no candidate: the first thing the request lacked to prove a copy locator (PROOF_GAPS), or "nothing_stable"
+    why: str = ""             # a sentence naming everything it lacked; never page copy
 
 
 def _swap_receiver(receiver: str, language: str) -> str:
@@ -714,9 +727,14 @@ def write_facts(el: Dict[str, Any], test_id_attribute: str) -> ElementFacts:
     hooks = {a: el[k] for a, k in _HOOK_KEYS.items() if isinstance(el.get(k), str) and el[k]}
     role = base.role or _role_of(el) or None
     name = base.accessible_name or (base.label if base.tag in _FORM_TAGS else None)
+    if role and not base.role and base.tag in _NAMED_ROLE:
+        # a landmark or region the tag implies is named by its author (aria-label, aria-labelledby), never by the copy inside it
+        given = el.get("aria_label") or el.get("label")
+        name = given if isinstance(given, str) and given else None
+    level = heading_level(el) if role == "heading" else None
     return replace(base, test_id=hooks.get(test_id_attribute) if test_id_attribute in _HOOK_KEYS else None,
                    test_attrs=tuple((a, v) for a, v in hooks.items() if a != test_id_attribute), role=role,
-                   accessible_name=name)
+                   accessible_name=name, level=level)
 
 
 def _hook_unique(cand: str, facts: ElementFacts, test_id_attribute: str, inventory: Any, item: Dict[str, Any]) -> bool:
@@ -733,6 +751,54 @@ def _hook_unique(cand: str, facts: ElementFacts, test_id_attribute: str, invento
         return False
     holders = [e for e in inventory.elements if e.get(key) == value]
     return len(holders) == 1 and holders[0] is item
+
+
+# What the request lacked when a copy-based locator could not be shown unique: the code (WriteResult.gap) and the sentence
+# (WriteResult.why). A sentence names no page copy.
+PROOF_GAPS = {
+    "aria_snapshot_missing": "its role and name could be shown unique only with page.aria_snapshot, which the request does not carry",
+    "aria_snapshot_unusable": "page.aria_snapshot is over its size limits, so its role and name could not be counted",
+    "copy_counts_missing": "its text could be shown unique only with the probe's copy counts (inventory_copy_withheld and "
+                           "inventory_copy_withheld_data), which the request does not carry",
+    "listing_incomplete": "the inventory does not hold all the page's copy (it is cut, or the probe left copy out), so its text "
+                          "cannot be shown unique",
+    "copy_not_unique": "its copy is held by more than one element and nothing stable tells them apart",
+    "not_matched": "what the request carries does not show the page holding this copy under that role or text",
+    "unprovable": "its uniqueness cannot be evaluated from the inventory and snapshot the request carries",
+    "nothing_stable": "the element has no stable attribute and no copy to name it by",
+}
+
+
+def proof_gap(inventory: Any, kind: str, cand_page: str) -> Tuple[str, str]:
+    """(code, sentence) for why copy-based candidate `cand_page` (a Python spelling, as the oracle reads it) was not shown to be
+    the one element: the request lacks what proves it, or it is not unique. Asked only after the candidate failed."""
+    n = inventory.count(cand_page)
+    if n is not None and n > 1:
+        return "copy_not_unique", f"its copy is held by {n} elements and nothing stable tells them apart"
+    if n is not None:
+        return ("copy_not_unique", PROOF_GAPS["copy_not_unique"]) if n == 1 else ("not_matched", PROOF_GAPS["not_matched"])
+    if kind == "role":
+        code = ("aria_snapshot_unusable" if inventory.aria_over else "aria_snapshot_missing" if not inventory.aria
+                else "unprovable")
+    elif not inventory.complete:
+        code = "listing_incomplete"
+    elif inventory.counts_missing:
+        code = "copy_counts_missing"
+    elif inventory.copy_more or inventory.withheld or inventory.withheld_data:
+        code = "listing_incomplete"
+    else:
+        code = "unprovable"
+    return code, PROOF_GAPS[code]
+
+
+def _gap_text(gaps: List[Tuple[str, str]]) -> Tuple[str, str]:
+    """The (first code, one sentence) of the gaps found for an element's copy locators, each reason once, best locator first."""
+    if not gaps:
+        return "nothing_stable", PROOF_GAPS["nothing_stable"]
+    seen: Dict[str, str] = {}
+    for code, sentence in gaps:
+        seen.setdefault(code, sentence)
+    return gaps[0][0], "no stable attribute names the element, and a copy locator could not be used: " + "; ".join(seen.values())
 
 
 def write(item: Dict[str, Any], inventory: Any, language: str, receiver: str, broken_kind: Optional[str],
@@ -755,6 +821,7 @@ def write(item: Dict[str, Any], inventory: Any, language: str, receiver: str, br
     oracle_src = candidates(facts, "python", "page", order, named_classes)    # the oracle reads Python literals: one spelling
     stub = f"{receiver}.locator('x')"
     kept: List[Written] = []
+    gaps: List[Tuple[str, str]] = []           # why each copy-based candidate was not shown unique (said when nothing is written)
     for cand, cand_other, cand_page in zip(mine, theirs, oracle_src):
         kind = kind_of(cand_page)
         if kind == "chain":
@@ -766,6 +833,8 @@ def write(item: Dict[str, Any], inventory: Any, language: str, receiver: str, br
         subject = subject_tag(cand_page)       # a css locator can only resolve to the tag its last selector ends in
         if subject is not None and subject != (item.get("tag") or "").lower():
             continue
+        if not unique and kind in COPY_KINDS:
+            gaps.append(proof_gap(inventory, kind, cand_page))
         chain = try_parse(cand.replace(receiver, "page", 1), language)
         if not unique or chain is None or try_parse(cand_other.replace(_swap_receiver(receiver, other), "page", 1),
                                                     other) is None:
@@ -775,6 +844,7 @@ def write(item: Dict[str, Any], inventory: Any, language: str, receiver: str, br
         kept.append(Written(kind, RANK[kind], {language: cand, other: cand_other}, chain_to_data(chain),
                             kind in COPY_KINDS))
     if not kept:
-        return WriteResult([], False, broken_kind or "chain", "no_stable_locator")
+        gap, why = _gap_text(gaps)
+        return WriteResult([], False, broken_kind or "chain", "no_stable_locator", gap, why)
     above = [w for w in kept if w.tier <= floor]
     return WriteResult(above or kept, not above, broken_kind or "chain")

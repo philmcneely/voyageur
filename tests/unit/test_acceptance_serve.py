@@ -55,14 +55,17 @@ def test_uvicorn_gets_the_bound_socket_not_a_port_to_bind_again(monkeypatch):
 def test_a_server_that_never_starts_is_an_error(monkeypatch):
     import uvicorn
 
+    handed = []
+
     class Stalled:
         def __init__(self, config):
-            self.started = False
+            self.started = self.should_exit = False
 
         def run(self, sockets=None):
-            pass
+            handed.append(sockets)
 
     monkeypatch.setattr(uvicorn, "Server", Stalled)
     monkeypatch.setattr(acceptance, "SERVE_START_S", 0.2)
     with pytest.raises(RuntimeError, match="did not start"):
         acceptance.Service("fake", None).serve_http()
+    assert handed[0][0].fileno() == -1                                       # the port is given back, not held

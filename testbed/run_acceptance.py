@@ -248,6 +248,8 @@ class Service:
             deadline = time.monotonic() + SERVE_START_S
             while not server.started:
                 if time.monotonic() > deadline:
+                    server.should_exit = True
+                    sock.close()
                     raise RuntimeError(f"the in-process service did not start on port {port} within {SERVE_START_S:g} s")
                 time.sleep(0.05)
             self.http_server, self.http_url = server, f"http://127.0.0.1:{port}"

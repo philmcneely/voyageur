@@ -369,12 +369,13 @@ def test_the_cap_goes_to_records_only_when_every_image_is_gone_and_counts_them_f
     crowd(s, clock, 100, "old", now - 40 * DAY)
     crowd(s, clock, 100, "new", now - DAY, images=5)
     clock["t"] = now
-    s.max_db_bytes = s.used_bytes() - 400_000            # more than five images can give
+    s._run("UPDATE heals SET why = ? WHERE heal_id LIKE 'old%'", ("w" * 1500,))       # the old records are the bulk of what is left
+    s.max_db_bytes = s.used_bytes() - 250_000            # the five images (220 KB) are not enough: old records give the rest
     s.purge()
     assert s._run("SELECT COALESCE(SUM(length(png)), 0) AS n FROM overlays")[0]["n"] == 0
     gone = 200 - s.count_rows("heals")
-    assert gone > 0 and s.rollup_info()["heals"] == gone              # each purged record was counted first
-    assert s.used_bytes() <= s.max_db_bytes or s.count_rows("heals") == 0
+    assert 0 < gone < 100 and s.rollup_info()["heals"] == gone        # each purged record was counted first
+    assert s.used_bytes() <= s.max_db_bytes and all(s.get_heal(f"new{i:03d}") for i in range(100))      # old records only, no young one
 
 
 def test_the_cap_purges_records_past_the_durability_window_before_younger_ones(caplog):
@@ -408,16 +409,17 @@ def test_the_cap_may_force_a_young_record_out_and_then_warns(caplog):
     assert s.get_heal("y599") is not None and s.get_heal("y000") is None          # the oldest went first
 
 
-def test_a_cap_nothing_can_meet_ends_and_says_so(caplog):
+def test_a_cap_nothing_can_meet_ends_and_says_so_and_deletes_no_heal_for_it(caplog):
     caplog.set_level(logging.WARNING, logger="voyageur")
     s, clock = new(cap=1)
     heal(s, "h1")
     clock["t"] += 7200
-    s.max_db_bytes = 10
+    s.max_db_bytes = 10                                                        # the schema alone is over this: no heal can free it
     s.purge()
-    assert s.count_rows("heals") == 0 and [r for r in caplog.records if "cannot get under" in r.getMessage()]
-    s.purge()                                                                  # nothing left: no second warning
-    assert len([r for r in caplog.records if "cannot get under" in r.getMessage()]) == 1
+    assert s.count_rows("heals") == 1 and s.rollup_info()["heals"] == 0       # deleting it would free next to nothing: it stays
+    assert len([r for r in caplog.records if "cannot be met" in r.getMessage()]) == 1
+    s.purge()                                                                  # still over: no second warning
+    assert len([r for r in caplog.records if "cannot be met" in r.getMessage()]) == 1
 
 
 def test_the_cap_never_removes_a_heal_from_the_last_hour_or_one_still_open():
@@ -437,7 +439,7 @@ def test_the_cap_ends_when_deleting_frees_nothing_and_leaves_the_protected_heals
     clock["t"] += 7200
     heal(s, "fresh")
     s.max_db_bytes = 10
-    monkeypatch.setattr(s, "used_bytes", lambda: 10 + 7500)                    # over by 7500, and deleting never lowers it
+    monkeypatch.setattr(s, "used_bytes", lambda: 10 + 500)                     # over by 500, and deleting never lowers it
     s.purge()
     assert s.count_rows("heals") == 1 and s.get_heal("fresh") is not None         # it ends, with the last-hour heal still there
 

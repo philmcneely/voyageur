@@ -15,6 +15,7 @@ services:
       HEAL_RETENTION_DAYS: ${HEAL_RETENTION_DAYS:-31}
       HEAL_OVERLAY_RETENTION_DAYS: ${HEAL_OVERLAY_RETENTION_DAYS:-7}
       HEAL_MAX_DB_MB: ${HEAL_MAX_DB_MB:-0}
+      HEAL_ROLLUP_DETAIL_DAYS: ${HEAL_ROLLUP_DETAIL_DAYS:-90}
     volumes:
       - heal-data:/data
     read_only: true

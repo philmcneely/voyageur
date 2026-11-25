@@ -300,7 +300,13 @@ into additive counters (a heal, its calls and its tries) and added them to the `
 transaction that deletes it, so a failed purge loses nothing and a second one counts nothing twice. `metrics.aggregate` adds the rollup's
 counters to the ones it computes from the records kept (`archive` in the answer says how many heals that is); the figures that are not sums
 (distinct locators, hot spots, runs, latency percentiles) stay on the records kept. A scope per model keeps the `model` filter exact.
-`HEAL_MAX_DB_MB` frees the oldest images first, then the oldest records past the durability window, then younger ones with a warning.
+`metrics.aggregate` reads the records and the rollup in one `Store.snapshot()` (one lock hold, one read transaction), so a purge cannot move a heal from one to
+the other between the reads. A rollup day older than `HEAL_ROLLUP_DETAIL_DAYS` is folded (`Store._fold_rollup`) into rows without the repo, framework and client
+language, so the table is bounded by days and counters and a total reads the same; a window counts only the days wholly inside it and names the days it cuts.
+`HEAL_MAX_DB_MB` frees the oldest images first, then the oldest records past the durability window, then the oldest cached decisions, then younger records
+with a warning, and only when an estimate of what deleting every record older than an hour frees (less the rollup rows counting them adds) reaches the cap.
+A purge is five phases (records, images, decisions, folding, the cap) that fail one at a time, a heal that cannot be counted is logged by id and left in place,
+and the write routes purge at most once a minute like the read routes.
 Open conversations are held in memory, bounded, and closed after `HEAL_OPEN_TTL_S`.
 
 ## Modules

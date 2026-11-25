@@ -304,7 +304,7 @@ class HealSession:
             log.info("HEAL_OVERLAY_RETENTION_DAYS (%d) is longer than HEAL_RETENTION_DAYS (%d): an image goes with its record.",
                      settings.overlay_retention_days, settings.retention_days)
         store = Store(db_path or settings.db_path, settings.retention_days, overlay_retention_days=settings.overlay_retention_days,
-                      max_db_mb=settings.max_db_mb)
+                      max_db_mb=settings.max_db_mb, rollup_detail_days=settings.rollup_detail_days)
         runner: Any = None
         if settings.workers > 0:
             runner = ProcessRunner(settings.workers)
@@ -330,6 +330,7 @@ class HealSession:
                            "max_rounds": 5, "run_token_budget": self.settings.run_token_budget},
                 "retention_days": self.settings.retention_days,
                 "overlay_retention_days": self.settings.overlay_retention_days, "max_db_mb": self.settings.max_db_mb,
+                "rollup_detail_days": self.settings.rollup_detail_days,
                 "languages": ["python", "typescript"],
                 "diagnose": {"enabled": self.settings.diagnose_enabled},
                 "durability": {"available": self.settings.retention_days > DURABLE_DAYS,
@@ -345,8 +346,9 @@ class HealSession:
         return self.store.get_heal(heal_id)
 
     def start(self, req: HealRequest) -> HealResponse:
-        """Run the ladder for one failure and answer with a candidate to try or a decision."""
-        self.store.purge()
+        """Run the ladder for one failure and answer with a candidate to try or a decision. Expired rows are purged here too, at most
+        once a minute like on every read route."""
+        self.store.purge_if_due()
         self._expire()
         return self._start(req)
 
@@ -355,7 +357,7 @@ class HealSession:
         the setting is off (no record, no call)."""
         if not self.settings.diagnose_enabled:
             raise DiagnoseOff(DIAGNOSE_OFF)
-        self.store.purge()
+        self.store.purge_if_due()
         self._expire()
         return self._diagnose(req)
 

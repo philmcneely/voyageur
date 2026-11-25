@@ -93,6 +93,10 @@ KEYS = re.compile(r"sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{12,}|x
                   r"-----BEGIN [A-Z ]*PRIVATE KEY-----|"
                   r"(?:api[_-]?key|token|secret|password)\s*[=:]\s*['\"][A-Za-z0-9+/_-]{20,}['\"]", re.I)
 HOSTNAME = re.compile(r"\b[a-z0-9-]+\.(?:local|lan|internal|home|corp|ts\.net)\b", re.I)
+# Docker's documented name for the host as seen from a container: the same on every machine, so it names no network of ours.
+# Exact match only (the whole dotted name); anything else ending in .internal is still a finding.
+# A dot here is any of the Unicode full stops a resolver folds to "." (U+FF0E, U+3002, U+FF61), so none of them can extend the name.
+PUBLIC_HOSTNAMES = re.compile(r"(?<![\w.．。｡-])host\.docker\.internal(?![.．。｡]?[\w-])", re.I)
 THIS_FILE = Path(__file__).resolve()
 # third-party files shipped as published (swagger-ui-dist 5.17.14, integrity checked against the npm registry when added):
 # minified code, where names like `resolve.internal` are properties, not hosts. Only these exact files are left out.
@@ -105,6 +109,11 @@ def files_to_scan():
     for p in ROOT.rglob("*"):
         if p.is_file() and not (set(p.relative_to(ROOT).parts) & skip_dirs) and p != THIS_FILE and p not in VENDORED and p.suffix in exts:
             yield p
+
+
+def hostname_hits(line: str):
+    """The internal-looking host names in one line, Docker's own host name left out."""
+    return [m.group(0) for m in HOSTNAME.finditer(PUBLIC_HOSTNAMES.sub("", line))]
 
 
 def lines_of(p: Path):
@@ -134,8 +143,24 @@ def test_no_file_holds_a_lan_address_or_an_internal_hostname():
                     continue
                 if (a == 192 and b == 168) or a not in (127, 0, 10, 172, 198, 203, 100, 192):
                     hits.append((str(p.relative_to(ROOT)), i, m.group(0)))
-            hits += [(str(p.relative_to(ROOT)), i, m.group(0)) for m in HOSTNAME.finditer(line)]
+            hits += [(str(p.relative_to(ROOT)), i, h) for h in hostname_hits(line)]
     assert not hits, hits
+
+
+def test_only_dockers_own_host_name_is_left_out():
+    assert hostname_hits("http://host.docker.internal:11434/v1") == []
+    assert hostname_hits("HOST.Docker.INTERNAL") == []
+    assert hostname_hits("point it at host.docker.internal.") == []                     # the end of a sentence
+    assert hostname_hits("db.internal") == ["db.internal"]
+    assert hostname_hits("host.docker.internal db.internal") == ["db.internal"]
+    assert hostname_hits("my-host.docker.internal") == ["docker.internal"]
+    assert hostname_hits("xhost.docker.internal") == ["docker.internal"]
+    assert hostname_hits("foo.host.docker.internal") == ["docker.internal"]
+    assert hostname_hits("host.docker.internal.lan") == ["docker.internal"]
+    assert hostname_hits("host.docker.internal-x.lan") == ["docker.internal", "-x.lan"]
+    assert hostname_hits("host.docker.internal.evil.lan") == ["docker.internal", "evil.lan"]
+    for dot in ("．", "。", "｡"):                                        # a Unicode full stop extends the name too
+        assert hostname_hits(f"host.docker.internal{dot}lan") == ["docker.internal"], dot
 
 
 def test_no_file_holds_a_key_or_a_token():

@@ -8,3 +8,4 @@ __pycache__/
 .ruff_cache/
 testbed/tests/ts/node_modules
 .claude/
+.env

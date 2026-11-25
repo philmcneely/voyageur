@@ -12,7 +12,8 @@ from the stack, a text-only inventory of the page); the service finds the elemen
 locator for it **itself**, and answers with a patch to try. The client applies the patch, re-runs the exact test and reports what
 it saw. Only a verified result counts as a heal.
 
-- **Text only.** The service never sees a screenshot, a DOM, a cookie or anything a person typed. It has no browser and fetches no page.
+- **Text first, no browser.** By default the service sees attributes and visible copy only: never a DOM, a cookie or anything a person
+  typed, and it fetches no page. A screenshot is accepted only when the operator turns vision on (see [Vision](#vision-optional)).
 - **The model picks, the service writes.** When a model is needed (one call, a short list of quoted candidates), it can only name a listed
   element. Locator text is always produced by the service, ranked by stability (test id, id, name, css on a stable attribute, role
   and name, label, text) and checked for uniqueness against the inventory. Nothing a model says becomes code.
@@ -57,6 +58,23 @@ from a run of the testbed's `drift` and `orders` specs: 34 failures, 27 healed, 
 
 ![The dashboard overview: success rate, tests fixed, tokens per fix, outcome mix and where each heal settled](docs/images/dashboard.png)
 
+### Vision (optional)
+
+When a text pick cannot decide (no usable answer, a gate refused it, two candidates read the same, or the live check found the wrong
+element), the service can ask a vision model instead. The client sends its viewport screenshot; the service draws a numbered box on
+each candidate of the pick list and sends that picture with the list. The model answers with a number. The service still writes the
+locator, and the pick passes the same gates as a text pick.
+
+This is the testbed's `drift-fr` page, where every visible word was translated to French and the test's `Save changes` no longer
+matches. Four candidates are marked; the picture carries digits and outlines only, never text from the page.
+
+![The drift-fr page with four numbered candidate boxes: the display name input (1), the newsletter checkbox (2), the Enregistrer button (3) and the Supprimer le compte button (4)](docs/images/vision-overlay.png)
+
+Vision is off until the operator configures a vision model (`HEAL_VISION_*`) and sets `HEAL_VISION_IMAGES_ALLOWED=true`, and the
+request asks for it (`options.vision: "auto"` or `"on"`). The marked image is kept with the heal record (`GET /v1/heals/{id}/overlay.png`,
+same token) until `HEAL_RETENTION_DAYS` expires it; the client's own screenshot is never stored. The rules are in
+[docs/SECURITY.md](docs/SECURITY.md).
+
 ## Quickstart (localhost)
 
 ```bash
@@ -76,22 +94,62 @@ proxy; every client then sends the token as a bearer header.
 Without a model configured the service still runs: a heal that needs a pick ends `needs_human` with reason `model_not_configured`,
 and the same-element match still works.
 
-**Docker.** The image runs the service only (no browser) as a non-root user, with its record in the `/data` volume. A container must
-listen on `0.0.0.0`, so it always needs a token of at least 32 characters:
-
-```bash
-export HEAL_SERVICE_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(24))")
-export HEAL_TEXT_BASE_URL=https://models.app.example/v1 HEAL_TEXT_MODEL=your-model-id   # an endpoint the container can reach
-docker compose up -d                                 # http://127.0.0.1:8765, read-only root, no capabilities
-```
-
-`compose.yaml` publishes the port on 127.0.0.1 only; put a TLS reverse proxy in front of it before other machines use it.
-
 Replay one saved request offline (the same core, an in-memory record):
 
 ```bash
 uv run voyageur heal --request fixtures/contract/renamed_id_to_testid/request.json
 ```
+
+## Docker
+
+The image runs the service only (no browser) as a non-root user on a read-only root with no capabilities, and keeps its record in
+the `heal-data` volume. No image is published yet; you build it from this repository. A container must listen on `0.0.0.0`, so it
+always needs a token of at least 32 characters.
+
+**1. Build and start**
+
+```bash
+# in a clone of this repository
+umask 077                                 # .env holds the token: readable by you only
+printf 'HEAL_SERVICE_TOKEN=%s\n' "$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" > .env
+cat >> .env <<'EOF'
+HEAL_TEXT_BASE_URL=https://models.app.example/v1
+HEAL_TEXT_MODEL=your-model-id
+HEAL_TEXT_API_KEY=
+EOF
+docker compose up -d --build              # http://127.0.0.1:8765
+curl -s localhost:8765/healthz
+```
+
+The token is generated into `.env`, never typed. Compose reads `.env` from the same folder, and the repository's `.gitignore` keeps
+it out of version control.
+
+**2. A model on the host.** Inside the container `localhost` is the container. Point the service at `host.docker.internal` instead,
+for example `HEAL_TEXT_BASE_URL=http://host.docker.internal:11434/v1` for Ollama. Docker Desktop resolves that name by itself; on
+Linux add `extra_hosts: ["host.docker.internal:host-gateway"]` under the service in `compose.yaml`. Plain http is allowed because the
+name resolves to a private address; any other http host is refused. The model server must listen where the container can reach it;
+on Linux bind it to the Docker bridge address rather than `0.0.0.0`, or firewall it, so it is not opened to the whole network.
+
+**3. Point the tests at it.** Clients send the same token:
+
+```bash
+export HEAL_SERVICE_URL=http://127.0.0.1:8765 HEAL_SERVICE_TOKEN=<the token from .env>
+```
+
+**4. More settings.** `compose.yaml` passes the text model, the token and `HEAL_RETENTION_DAYS` (31 by default here, so durability
+figures are available). For vision, model prices or any other variable in [Configuration](#configuration), add it to `.env` and to
+the `environment:` list in `compose.yaml`.
+
+**5. Run it**
+
+```bash
+docker compose logs -f voyageur           # the service log
+docker compose down                       # stop; the record stays in the heal-data volume
+docker compose down -v                    # stop and delete the record
+git pull && docker compose up -d --build  # upgrade
+```
+
+The port is published on 127.0.0.1 only. Before other machines use it, put a TLS reverse proxy in front of it.
 
 ## Configuration
 
@@ -155,7 +213,7 @@ offline. With no token configured (the default on loopback) there is nothing to 
 
 Click a heal to open its record: the broken and the written locator, where it ran, the step it settled at, every model call (role, model,
 tokens, time) and every candidate that was tried with what the live page said. Counts only; the service keeps no file contents, page
-text or screenshots.
+text or client screenshots. The one image it keeps is a vision heal's marked overlay, until the record expires.
 
 ![One heal opened in the dashboard: broken and written locator, step 2 fingerprint match, no model call, one candidate tried and verified](docs/images/dashboard-heal.png)
 
@@ -174,8 +232,9 @@ Cost figures need a price per model, in the unit you choose, per million tokens:
 
 ## Security model
 
-- **What crosses the wire is attributes and visible copy.** Input values, cookies, storage state and screenshots are refused: any
-  `value`, `cookie` or `storage` key anywhere in a request is a 422 that does not echo the content. The probe never reads what was
+- **What crosses the wire is attributes and visible copy.** Input values, cookies and storage state are refused: any
+  `value`, `cookie` or `storage` key anywhere in a request is a 422 that does not echo the content. A screenshot is refused (422)
+  unless the request asks for vision; with vision unavailable it is checked and then never decoded, kept or sent. The probe never reads what was
   typed, and the aria snapshot is accepted only with the typed text of input lines removed.
 - **Limits are checked before parsing:** 10 MB per request, 20 files, 256 KB per file and 1 MB of source, 500 inventory entries, a 256 KB aria snapshot, 64 KB of error text, 4000-character expressions; regular expressions run on RE2 only. An input over a limit is refused or marked unknown, never truncated. The full table is in [docs/SECURITY.md](docs/SECURITY.md).
 - **Bounded work.** Heal stages run in a killable worker pool under a per-request deadline, so a hostile file costs one request its answer, not the service its availability.

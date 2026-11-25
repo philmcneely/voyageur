@@ -19,11 +19,13 @@ Features:
     ✓ heal: the same limits and refusals as the API (a value, a cookie or a storage dump is refused), exit 2 with a one-line
       message on an unreadable or unacceptable request, exit 0 with the response JSON otherwise (a decision is not an error)
     ✓ mcp: exit 2 with the install instruction when the `mcp` package is missing; stdout is the protocol, messages go to stderr
-    ✓ Settings and the model come from the environment (HEAL_* variables; see config.py and llm.py)
+    ✓ Settings and the model come from the environment (HEAL_* variables; see config.py and llm.py); the help of `voyageur` and
+      `voyageur serve` names the retention settings, their defaults and what 0 means
     ✓ Nothing is printed but the response or a message: no file content, page text or model reply goes to the log
 
 Environment Variables:
-    HEAL_SERVICE_TOKEN, HEAL_DB, HEAL_RETENTION_DAYS, HEAL_RUN_TOKEN_BUDGET and the model settings; see config.py and llm.py.
+    HEAL_SERVICE_TOKEN, HEAL_DB, HEAL_RETENTION_DAYS, HEAL_OVERLAY_RETENTION_DAYS, HEAL_MAX_DB_MB, HEAL_RUN_TOKEN_BUDGET and the
+    model settings; see config.py and llm.py. `voyageur --help` and `voyageur serve --help` list the retention ones.
 
 Author: PMAC
 ===============================================================================
@@ -44,6 +46,14 @@ from .llm import LLMConfigError
 from .schemas import LimitExceeded, RefusedRequest, parse_request
 
 DEFAULT_HOST, DEFAULT_PORT = "127.0.0.1", 8765
+RETENTION_HELP = """data retention (environment variables, each adjustable):
+  HEAL_RETENTION_DAYS           days a heal record is kept (default 31; 0 keeps nothing). Older heals are counted into a
+                                counts-only daily rollup first, so /v1/metrics totals keep their history
+  HEAL_OVERLAY_RETENTION_DAYS   days the marked screenshot of a vision heal is kept (default 7; 0 stores no image). The heal
+                                record stays and says its image expired
+  HEAL_MAX_DB_MB                size cap of the store in megabytes (default 0: no cap). Over it, the oldest images go first, then
+                                the oldest heal records (counted first)
+"""
 
 
 def _loopback(host: str) -> bool:
@@ -128,9 +138,11 @@ def _mcp(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="voyageur", description="Repair drifted Playwright locators.")
+    parser = argparse.ArgumentParser(prog="voyageur", description="Repair drifted Playwright locators.", epilog=RETENTION_HELP,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-    serve = sub.add_parser("serve", help="run the HTTP service")
+    serve = sub.add_parser("serve", help="run the HTTP service", epilog=RETENTION_HELP,
+                           formatter_class=argparse.RawDescriptionHelpFormatter)
     serve.add_argument("--host", default=DEFAULT_HOST)
     serve.add_argument("--port", type=int, default=DEFAULT_PORT)
     serve.add_argument("--allow-remote", action="store_true", help="allow a bind address other than loopback (needs a token). The service speaks plain HTTP: "

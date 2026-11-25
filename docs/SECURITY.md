@@ -87,8 +87,9 @@ drawn) is refused, and the pick then passes the same gates and identity proof as
 paints "pick button 3" in its pixels can steer which listed element is picked, never what locator is written and never past a gate.
 
 **The overlay is kept, and expires.** The marked image is stored with the heal record so a reviewer can see what the model saw, behind
-the same bearer token as every other route (`GET /v1/heals/{id}/overlay.png`, `Cache-Control: private, no-store`). It is purged with its
-heal by `HEAL_RETENTION_DAYS`, and with `0` it is not stored at all. The client's original screenshot is never stored: it is held in
+the same bearer token as every other route (`GET /v1/heals/{id}/overlay.png`, `Cache-Control: private, no-store`). The image bytes are
+deleted after `HEAL_OVERLAY_RETENTION_DAYS` (7 by default), earlier when `HEAL_MAX_DB_MB` needs the space, and always with their heal
+(`HEAL_RETENTION_DAYS`, 31 by default); the heal record stays and says the image expired. With `0` for either setting the image is not stored at all. The client's original screenshot is never stored: it is held in
 memory only while an open conversation may still need a vision call (at most 64 MB in all) and dropped after.
 
 ## Overlays
@@ -141,8 +142,11 @@ not the service its availability.
 
 An open conversation keeps only what a result round needs (not the request), at most 500 are held, and one the client
 has not answered for `HEAL_OPEN_TTL_S` seconds (default 900) is closed with the reason `open_expired`. Stored records
-are purged by age (`HEAL_RETENTION_DAYS`) on every read as well as on every new heal. `/v1/metrics` reads at most the
-newest 20000 heals and says `truncated` when more matched.
+are purged by age (`HEAL_RETENTION_DAYS`, 31 by default) on every read as well as on every new heal; marked images go sooner
+(`HEAL_OVERLAY_RETENTION_DAYS`, 7), and `HEAL_MAX_DB_MB` (off by default) bounds the store's size, oldest images first. Before a heal is
+purged its counts are added to a daily rollup that is kept for good: counts under fixed counter names with the repo, framework and
+language, and no file contents, page text, locator, test name, path, run id or model reply. With `HEAL_RETENTION_DAYS=0` nothing is
+kept, rolled up or counted. `/v1/metrics` reads at most the newest 20000 heals and says `truncated` when more matched.
 
 ## The dashboard
 

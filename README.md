@@ -73,9 +73,9 @@ matches. Four candidates are marked; the picture carries digits and outlines onl
 ![The drift-fr page with four numbered candidate boxes: the display name input (1), the newsletter checkbox (2), the Enregistrer button (3) and the Supprimer le compte button (4)](docs/images/vision-overlay.png)
 
 Vision is off until the operator configures a vision model (`HEAL_VISION_*`) and sets `HEAL_VISION_IMAGES_ALLOWED=true`, and the
-request asks for it (`options.vision: "auto"` or `"on"`). The marked image is kept with the heal record (`GET /v1/heals/{id}/overlay.png`,
-same token) until `HEAL_RETENTION_DAYS` expires it; the client's own screenshot is never stored. The rules are in
-[docs/SECURITY.md](docs/SECURITY.md).
+request asks for it (`options.vision: "auto"` or `"on"`). The marked image is kept with the heal record for `HEAL_OVERLAY_RETENTION_DAYS`
+(7 by default; `GET /v1/heals/{id}/overlay.png`, same token), then deleted: the record stays and says its image expired, and the
+route answers `410`. The client's own screenshot is never stored. The rules are in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Quickstart (localhost)
 
@@ -138,8 +138,8 @@ on Linux bind it to the Docker bridge address rather than `0.0.0.0`, or firewall
 export HEAL_SERVICE_URL=http://127.0.0.1:8765 HEAL_SERVICE_TOKEN=<the token from .env>
 ```
 
-**4. More settings.** `compose.yaml` passes the text model, the token and `HEAL_RETENTION_DAYS` (31 by default here, so durability
-figures are available). For vision, model prices or any other variable in [Configuration](#configuration), add it to `.env` and to
+**4. More settings.** `compose.yaml` passes the text model, the token and the retention settings (`HEAL_RETENTION_DAYS` 31,
+`HEAL_OVERLAY_RETENTION_DAYS` 7, `HEAL_MAX_DB_MB` off, the same defaults as the service). For vision, model prices or any other variable in [Configuration](#configuration), add it to `.env` and to
 the `environment:` list in `compose.yaml`.
 
 **5. Run it**
@@ -162,7 +162,9 @@ never its value.
 | --- | --- | --- |
 | `HEAL_SERVICE_TOKEN` | unset | Bearer token clients must send. Unset means an open API, which the CLI allows on a loopback bind only. |
 | `HEAL_DB` | `.heal/voyageur.db` | SQLite file holding the heal record and the decision cache (`:memory:` for none). |
-| `HEAL_RETENTION_DAYS` | `14` | Days a heal record is kept. `0` keeps nothing: rows are removed as the heal finishes and nothing is cached. |
+| `HEAL_RETENTION_DAYS` | `31` | Days a heal record is kept (31 is the least that lets durability, "still passing 30 days later", be measured). Older records are counted into a counts-only daily rollup and then deleted. `0` keeps nothing: rows are removed as the heal finishes, nothing is cached and nothing is rolled up. |
+| `HEAL_OVERLAY_RETENTION_DAYS` | `7` | Days the marked screenshot of a vision heal is kept. Only the image bytes are deleted; the heal record stays and says its image expired. Never longer than `HEAL_RETENTION_DAYS`. `0` stores no image. |
+| `HEAL_MAX_DB_MB` | `0` (no cap) | Optional size cap of the store in megabytes. Over it, the oldest images go first, then the oldest heal records (counted into the rollup first), those past the 30-day durability window before any younger one; a younger one is logged as a warning. `0` is no cap. |
 | `HEAL_RUN_TOKEN_BUDGET` | unset | Model tokens one run (`run.id`) may spend; after that its failures end `needs_human` / `budget_exhausted`. |
 | `HEAL_CANDIDATE_CAP` | `30` | Lines in the candidate list a model is shown. |
 | `HEAL_DIAGNOSE` | off | `on` turns on `POST /v1/diagnose` and the MCP tool `diagnose_failure`, which send a failure's error text, aria snapshot and `expect(...)` literals (value-filtered) to the text model to name its likely cause. Read [SECURITY.md](docs/SECURITY.md#diagnose) first. |
@@ -184,6 +186,38 @@ never its value.
 | `HEAL_VISION_*` | unset | The same settings for the vision role (`BASE_URL`, `MODEL`, `API_KEY`, `PROVIDER`, ...). Vision never inherits the text role's endpoint: unset means vision is unavailable and a client's `auto` / `on` use text only. |
 | `HEAL_VISION_IMAGES_ALLOWED` | `false` | Must be `true` before any image is sent to the vision endpoint. The egress rule still applies: plain http only to a loopback or private-network host. |
 | `HEAL_CALLER` | `voyageur` | Sent as `X-Caller` (and `X-Heal-Caller`) on every model call; empty sends none. |
+
+A whole number of at least 0 is the only form each of the three takes; a negative number or text stops the service at start with a message that
+names the variable (never the value), and a blank variable is unset. Every limit is the operator's to change.
+
+### What is kept, and for how long
+
+| What | Kept | After that |
+| --- | --- | --- |
+| Heal record (outcome, reason code, step, locators, model calls, candidates tried, PR follow-up) | `HEAL_RETENTION_DAYS`, 31 days | Counted into the rollup, then deleted. `GET /v1/heals/{id}` is a 404. |
+| Overlay image (the marked screenshot of a vision call; about 44 KB each against about 1.4 KB for a record, so about 97 percent of a store) | `HEAL_OVERLAY_RETENTION_DAYS`, 7 days | The bytes are deleted. The record stays with `overlay.state: "expired"`, the image route answers `410`, the dashboard says it expired. |
+| Decision cache | `HEAL_RETENTION_DAYS` | Deleted. |
+| Rollup: one row per day, per repo, framework, client language and page language, holding **counts only** | Forever | Nothing: it is never purged. `HEAL_RETENTION_DAYS=0` stops adding to it but does not erase it; delete the database file to start over. |
+
+The rollup is what keeps `/v1/metrics` and the dashboard totals from dropping when old records go: failures seen, healed, needs human by
+reason, tests fixed, model calls, tokens and cost (by role, by model and by model per outcome), PR states, kept rate, escaped wrong heals,
+wrong-element catches, vision and cache counts, advise and diagnose counts, and the durability verdicts (see below). It holds no file contents,
+page text, locator, test name, page path, run id, error text or model reply: each row is a fixed counter name, a number and a short code
+(an outcome, a reason code, a step, a PR state, a language, a role) or a model name the operator configured. `repo` is the name the client's
+run reported. The Prometheus counters at `/metrics` are in memory, never read the store, and so do not change when records are purged.
+
+What a purge does **not** keep, because it is not a sum or needs the record itself:
+
+- The heal itself: no list row, no drill link, no candidates, no model-call rows, no locators. A drill link for an archived number opens only the heals still kept.
+- Locators fixed, hot spots, the per-run mix and the latency figures: computed from the records still kept (`archive.retained_only` in `/v1/metrics` names them).
+- Durability. It needs the follow-up the client reports against a heal, which only the record can take. The verdict is counted into the rollup at the moment the heal is purged (due, held, broke again, still too young) and nothing after, so a heal can be counted as measured only if a client reported 10 runs and 30 days before it expired; `HEAL_RETENTION_DAYS` below 31 makes that impossible, which is why the service warns at start.
+- Unbounded names. A client chooses its repo, framework and language names and the rollup is never purged, so each is cut to 100 characters, a name with `@ : ? # =` or a control character (what a credential or URL query needs) is filed under `other`, a dimension holds at most 200 distinct values and the four together at most 500 combinations: a heal with a new name after that is counted under `other`.
+- Filtering. Archived counts answer to the filters `repo`, `framework`, `language`, `page_language`, `model` and a time window (by day, UTC). A `run`, outcome or file filter reads the records kept only, and `archive.included` says so.
+
+With `HEAL_MAX_DB_MB` set, the service keeps the store under that size: images first, oldest first; then records past the durability window,
+oldest first, each counted into the rollup before it goes; then, only if nothing else is left to free, younger records, with a warning in
+the log that durability can no longer be measured for them. SQLite does not shrink a file it has grown, so the cap bounds the data in use and the
+file stops growing at about that size; a store created by this version also gives pages back to the disk.
 
 ## API
 
@@ -215,7 +249,9 @@ offline. With no token configured (the default on loopback) there is nothing to 
 
 Click a heal to open its record: the broken and the written locator, where it ran, the step it settled at, every model call (role, model,
 tokens, time) and every candidate that was tried with what the live page said. Counts only; the service keeps no file contents, page
-text or client screenshots. The one image it keeps is a vision heal's marked overlay, until the record expires.
+text or client screenshots. The one image it keeps is a vision heal's marked overlay, for `HEAL_OVERLAY_RETENTION_DAYS` (7 by default);
+after that the record says the image expired. The totals on the overview include heals whose records were purged, as counts only (see
+[What is kept](#what-is-kept-and-for-how-long)).
 
 ![One heal opened in the dashboard: broken and written locator, step 2 fingerprint match, no model call, one candidate tried and verified](docs/images/dashboard-heal.png)
 
@@ -224,7 +260,7 @@ uv sync --extra mcp             # mcp>=2.3,<3
 uv run voyageur mcp          # tools heal_locator and audit_locators over stdio, for an MCP client
 ```
 
-Durability ("still passing 10 runs and 30 days later") needs `HEAL_RETENTION_DAYS` of at least 31; with the default of 14 the service
+Durability ("still passing 10 runs and 30 days later") needs `HEAL_RETENTION_DAYS` of at least 31, the default; with 30 or less the service
 logs a warning at startup, `/v1/capabilities` reports `durability.available: false` and the dashboard shows a note, not a percentage.
 
 `HEAL_AUDIT_BUDGET_S` (default 5) is the work one `POST /v1/audit` may spend before it answers with the rows done and `truncated: true`.
@@ -252,7 +288,8 @@ Cost figures need a price per model, in the unit you choose, per million tokens:
 - **Bind and auth.** The service binds to `127.0.0.1`. Any other address needs `--allow-remote` and a token, and should sit behind a TLS
   reverse proxy because the bearer token and the page inventory travel on the connection.
 - **Logs and records carry no content.** Logs hold the heal id, the outcome, a reason code and counts. The record holds decisions, usage and
-  short facts (page path and language), never file contents, page text or model replies. Records expire after `HEAL_RETENTION_DAYS`.
+  short facts (page path and language), never file contents, page text or model replies. Records expire after `HEAL_RETENTION_DAYS` and
+  marked overlay images after `HEAL_OVERLAY_RETENTION_DAYS`; what outlives a record is a counts-only rollup.
 
 ## Tests
 

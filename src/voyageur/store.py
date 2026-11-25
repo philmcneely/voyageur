@@ -10,14 +10,22 @@ stayed green. Candidates tried are rows of their own, so every "wrong element" c
 
 The store holds decisions, usage and short facts about the page (its path and language, counts), never file contents, page
 text, the client's screenshot or model replies. The one picture kept is the overlay (the marked, cropped screenshot a vision model
-was shown), in a table of its own, so a reviewer can see what the model saw; it is purged with its heal and kept at all only when retention
-is above 0. The decision cache lives here too: a repeat of the same drift (same broken call, same
-page inventory, same language) costs no tokens.
+was shown), in a table of its own, so a reviewer can see what the model saw. It is images that fill a store (about 44 KB each
+against about 1.4 KB for a heal record), so an image has a shorter life than its record: after HEAL_OVERLAY_RETENTION_DAYS the
+bytes are deleted and the heal keeps a marker that its image expired. A record that is purged first has its counts added to a daily
+rollup (rollup.py), so the totals on /v1/metrics outlive the records. The decision cache lives here too: a repeat of the same
+drift (same broken call, same page inventory, same language) costs no tokens.
 
 Features:
     ✓ SQLite through the standard library, one connection behind a lock (the HTTP layer runs handlers in threads)
-    ✓ Retention: HEAL_RETENTION_DAYS (default 14) purges older heals, calls, tries and cache entries; 0 keeps nothing,
-      a heal's rows are removed the moment it finishes and nothing is cached
+    ✓ Retention: HEAL_RETENTION_DAYS (default 31) purges older heals, calls, tries and cache entries; 0 keeps nothing,
+      a heal's rows are removed the moment it finishes and nothing is cached, rolled up or counted
+    ✓ Images: HEAL_OVERLAY_RETENTION_DAYS (default 7) deletes the bytes of an overlay and keeps the heal and a marker, so the API
+      says "expired" and not "never there"; 0 stores no image. An image never outlives its record
+    ✓ Rollup: a heal about to be purged is first counted into the `rollup` table (counts only, per day), in the same transaction
+      that deletes it, so a failed purge loses nothing and a purge run twice counts nothing twice
+    ✓ Size cap: HEAL_MAX_DB_MB (default 0 = off) expires the oldest images first, then purges the oldest records (rolled up
+      first), those past the durability window before any younger one; purging a younger record is logged as a warning
     ✓ A fixed set of columns: update_heal refuses a name that is not one, so a typo cannot create a field
     ✓ A diagnosis (mode `diagnose`) keeps its cause as the reason, its confidence, whether an edit was suggested and why the model's
       answer was changed: the filters `confidence`, `patch_suggested` and `downgraded` list them; no evidence, note or edit text
@@ -30,23 +38,28 @@ Features:
       outcome, reason, PR state, tier movement or mode takes several values separated by commas
     ✓ followup(): what a client saw after the PR (merged unchanged, edited, reverted, still open, closed unmerged; whether
       the healed locator failed again; runs and days since) stored on the heal record
-    ✓ A store written by an earlier version gains the columns it lacks when it is opened
+    ✓ A store written by an earlier version gains the columns and tables it lacks when it is opened, and keeps its rows
     ✓ The path ":memory:" gives a store that lives and dies with the process (offline replays, tests)
 
 Environment Variables:
-    None here (HEAL_DB and HEAL_RETENTION_DAYS are read by config.ServiceSettings).
+    None here (HEAL_DB, HEAL_RETENTION_DAYS, HEAL_OVERLAY_RETENTION_DAYS and HEAL_MAX_DB_MB are read by config.ServiceSettings).
 
 Author: PMAC
 ===============================================================================
 """
 import json
+import logging
 import sqlite3
 import threading
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-DAY = 86400
+from .rollup import (BAD_PR_STATES, DAY, DIMENSIONS, DURABLE_DAYS, DURABLE_RUNS, Key, day_of, dims_of, heal_counts, merge,
+                     scopes_of)
+
+log = logging.getLogger("voyageur")
 PURGE_EVERY_S = 60        # read routes purge expired rows at most this often
 MAX_AGG_ROWS = 20000      # heals an aggregate reads (the newest); calls and tries are those of the same heals
 _HEAL_COLUMNS = (
@@ -73,10 +86,13 @@ _FLAGS = ("drift", "branch", "budget_exhausted", "cache_hit", "failed_again", "b
 # led_to_fix (healed and not edited, reverted or closed unmerged), model / role / local (a call matches), durability
 _SPECIAL = ("wrong_element", "with_calls", "led_to_fix", "model", "role", "local", "durability")
 _FILTERS = _EQ + _ONE_OF + _FLAGS + _SPECIAL
-BAD_PR_STATES = ("edited", "reverted", "closed_unmerged")      # a heal a human did not keep as written
-DURABLE_RUNS, DURABLE_DAYS = 10, 30                           # "still passing 10 runs and 30 days later"
 SORTS = ("newest", "slowest")
 MAX_FILTER_VALUES = 20                                        # values one list filter may name
+ROLLUP_BATCH = 500                                            # heals rolled up and deleted in one transaction
+PROTECT_S = 3600                                              # the size cap never takes a heal younger than this
+MB = 1024 * 1024
+_NO_IMAGE = sqlite3.Binary(b"")                               # what an expired overlay keeps in place of its bytes
+
 def _sql_type(column: str) -> str:
     return " INTEGER" if column in _INT else " REAL" if column in _REAL else " TEXT"
 
@@ -92,11 +108,17 @@ CREATE TABLE IF NOT EXISTS calls (
 CREATE TABLE IF NOT EXISTS tries (
   id INTEGER PRIMARY KEY AUTOINCREMENT, heal_id TEXT NOT NULL, round INTEGER, ref TEXT, kind TEXT, code TEXT,
   result TEXT, detail TEXT, created_at REAL NOT NULL);
-CREATE TABLE IF NOT EXISTS overlays (heal_id TEXT PRIMARY KEY, png BLOB NOT NULL, created_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS overlays (heal_id TEXT PRIMARY KEY, png BLOB NOT NULL, created_at REAL NOT NULL, expired_at REAL);
+CREATE TABLE IF NOT EXISTS rollup (
+  day INTEGER NOT NULL, scope TEXT NOT NULL, repo TEXT NOT NULL, framework TEXT NOT NULL, language TEXT NOT NULL,
+  page_language TEXT NOT NULL, metric TEXT NOT NULL, k1 TEXT NOT NULL, k2 TEXT NOT NULL, k3 TEXT NOT NULL, n INTEGER NOT NULL,
+  PRIMARY KEY (day, scope, repo, framework, language, page_language, metric, k1, k2, k3)) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS decisions (key TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at REAL NOT NULL);
 CREATE INDEX IF NOT EXISTS calls_heal ON calls(heal_id);
 CREATE INDEX IF NOT EXISTS tries_heal ON tries(heal_id);
 CREATE INDEX IF NOT EXISTS heals_run ON heals(run_id);
+CREATE INDEX IF NOT EXISTS heals_created ON heals(created_at);
+CREATE INDEX IF NOT EXISTS overlays_created ON overlays(created_at);
 """
 
 
@@ -107,20 +129,28 @@ class FilterError(ValueError):
 class Store:
     """The audit store. Safe to share between threads."""
 
-    def __init__(self, path: str = ":memory:", retention_days: int = 14, clock: Callable[[], float] = time.time):
+    def __init__(self, path: str = ":memory:", retention_days: int = 31, clock: Callable[[], float] = time.time,
+                 overlay_retention_days: int = 7, max_db_mb: int = 0):
         self.retention_days, self.clock = retention_days, clock
+        self.overlay_retention_days = overlay_retention_days
+        self.max_db_bytes = max_db_mb * MB                      # 0: no cap
         self._last_purge = float("-inf")
+        self._cap_stuck = False                                 # a cap nothing can meet is reported once, not on every purge
+        self._known: Optional[Dict[str, set]] = None            # the names the rollup holds (rollup.dims_of), read once
         self._lock = threading.Lock()
         if path != ":memory:":
             Path(path).expanduser().parent.mkdir(parents=True, exist_ok=True)
         self._db = sqlite3.connect(path, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
         with self._lock:
+            self._db.execute("PRAGMA auto_vacuum = INCREMENTAL")     # takes effect only on a file with no table yet
             self._db.executescript(_SCHEMA)
             have = {r["name"] for r in self._db.execute("PRAGMA table_info(heals)")}
             for column in _HEAL_COLUMNS:          # a store of an earlier version lacks the columns added since
                 if column not in have:
                     self._db.execute(f"ALTER TABLE heals ADD COLUMN {column}{_sql_type(column)}")
+            if "expired_at" not in {r["name"] for r in self._db.execute("PRAGMA table_info(overlays)")}:
+                self._db.execute("ALTER TABLE overlays ADD COLUMN expired_at REAL")
             self._db.commit()
         if retention_days == 0:
             self._delete_heals("1 = 1", ())              # nothing is kept: leftovers of a crashed run go too
@@ -190,6 +220,7 @@ class Store:
         rec["tries"] = [dict(r) for r in self._run("SELECT * FROM tries WHERE heal_id = ? ORDER BY id", (heal_id,))]
         if isinstance(rec.get("evidence"), str):
             rec["evidence"] = json.loads(rec["evidence"])
+        rec["overlay"] = self.overlay_state(heal_id)
         return rec
 
     def list_heals(self, since: Optional[float] = None, until: Optional[float] = None, limit: int = 100, offset: int = 0,
@@ -329,23 +360,40 @@ class Store:
         return int(rows[0]["n"])
 
     def count_rows(self, table: str) -> int:
-        if table not in ("heals", "calls", "tries", "decisions", "overlays"):
+        if table not in ("heals", "calls", "tries", "decisions", "overlays", "rollup"):
             raise ValueError("unknown table")
         return int(self._run(f"SELECT COUNT(*) AS n FROM {table}")[0]["n"])
 
     # ---- overlay (the marked screenshot a vision model was shown) -----------------------------------------------
+    @property
+    def image_days(self) -> int:
+        """Days an image is kept: its own setting, and never longer than its record."""
+        return min(self.overlay_retention_days, self.retention_days)
+
     def put_overlay(self, heal_id: str, png: bytes) -> None:
-        """Keep the overlay of a heal's vision call. A no-op with retention 0 (nothing of a heal is kept)."""
-        if self.retention_days == 0:
+        """Keep the overlay of a heal's vision call. A no-op with retention 0 (nothing of a heal is kept) or an image
+        period of 0."""
+        if self.retention_days == 0 or self.overlay_retention_days == 0:
             return
-        self._run("INSERT OR REPLACE INTO overlays (heal_id, png, created_at) VALUES (?,?,?)",
+        self._run("INSERT OR REPLACE INTO overlays (heal_id, png, created_at, expired_at) VALUES (?,?,?,NULL)",
                   (heal_id, sqlite3.Binary(png), self.clock()))
 
     def get_overlay(self, heal_id: str) -> Optional[bytes]:
-        """The overlay PNG of a heal, or None (no vision call, or purged)."""
+        """The overlay PNG of a heal, or None (no vision call, or the image expired: overlay_state tells which)."""
         self.purge_if_due()
-        rows = self._run("SELECT png FROM overlays WHERE heal_id = ?", (heal_id,))
+        rows = self._run("SELECT png FROM overlays WHERE heal_id = ? AND expired_at IS NULL", (heal_id,))
         return bytes(rows[0]["png"]) if rows else None
+
+    def overlay_state(self, heal_id: str) -> Dict[str, Any]:
+        """What the store holds of a heal's image: `kept` (with its size and when it will expire), `expired` (with when)
+        or `none` (no vision call made one, or this store keeps no images)."""
+        rows = self._run("SELECT created_at, expired_at, length(png) AS bytes FROM overlays WHERE heal_id = ?", (heal_id,))
+        if not rows:
+            return {"state": "none"}
+        row = rows[0]
+        if row["expired_at"] is not None:
+            return {"state": "expired", "expired_at": row["expired_at"]}
+        return {"state": "kept", "bytes": row["bytes"], "expires_at": row["created_at"] + self.image_days * DAY}
 
     # ---- decision cache -----------------------------------------------------------------------------------------
     def cache_get(self, key: str) -> Optional[Dict[str, Any]]:
@@ -363,21 +411,160 @@ class Store:
                   (key, json.dumps(payload), self.clock()))
 
     # ---- retention ----------------------------------------------------------------------------------------------
+    def _delete_ids(self, ids: List[str]) -> None:
+        """Delete these heals and their rows. No lock and no commit: the caller holds the lock and ends the transaction."""
+        marks = ", ".join("?" * len(ids))
+        for table in ("calls", "tries", "overlays"):
+            self._db.execute(f"DELETE FROM {table} WHERE heal_id IN ({marks})", ids)
+        self._db.execute(f"DELETE FROM heals WHERE heal_id IN ({marks})", ids)
+
     def _delete_heals(self, where: str, args: tuple) -> None:
+        """Delete heals without counting them: retention 0 keeps nothing, a rollup included."""
         self._run(f"DELETE FROM calls WHERE heal_id IN (SELECT heal_id FROM heals WHERE {where})", args)
         self._run(f"DELETE FROM tries WHERE heal_id IN (SELECT heal_id FROM heals WHERE {where})", args)
         self._run(f"DELETE FROM overlays WHERE heal_id IN (SELECT heal_id FROM heals WHERE {where})", args)
         self._run(f"DELETE FROM heals WHERE {where}", args)
 
+    def _roll_up_and_delete(self, where: str, args: tuple, limit: int = ROLLUP_BATCH, once: bool = False) -> int:
+        """Count the oldest heals matching `where` into the rollup and delete them, `limit` at a time (every match, or with
+        `once` one batch), each batch one transaction: a failure leaves the heals in place and uncounted, never counted and
+        still there. Returns how many went."""
+        gone = 0
+        while True:
+            with self._lock:
+                try:
+                    self._db.execute("BEGIN IMMEDIATE")               # read and delete as one step, even with another process
+                    heals = [dict(r) for r in self._db.execute(
+                        f"SELECT * FROM heals WHERE {where} ORDER BY created_at, rowid LIMIT ?", (*args, max(1, limit)))]
+                    if not heals:
+                        self._db.rollback()
+                        return gone
+                    ids = [h["heal_id"] for h in heals]
+                    marks = ", ".join("?" * len(ids))
+                    calls: Dict[str, List[Dict[str, Any]]] = {i: [] for i in ids}
+                    tries: Dict[str, List[Dict[str, Any]]] = {i: [] for i in ids}
+                    for r in self._db.execute(f"SELECT * FROM calls WHERE heal_id IN ({marks})", ids):
+                        calls[r["heal_id"]].append(dict(r))
+                    for r in self._db.execute(f"SELECT * FROM tries WHERE heal_id IN ({marks})", ids):
+                        tries[r["heal_id"]].append(dict(r))
+                    if self._known is None:
+                        self._known = {d: {r[0] for r in self._db.execute(f"SELECT DISTINCT {d} FROM rollup")} for d in DIMENSIONS}
+                        self._known["combos"] = {tuple(r) for r in self._db.execute(
+                            "SELECT DISTINCT repo, framework, language, page_language FROM rollup")}
+                    known = self._known
+                    rows: Dict[tuple, int] = {}
+                    for h in heals:
+                        counts = heal_counts(h, calls[h["heal_id"]], tries[h["heal_id"]])
+                        dims = dims_of(h, known)
+                        for scope in scopes_of(calls[h["heal_id"]]):
+                            merge(rows, counts, (day_of(h["created_at"]), scope, *dims))
+                    self._db.executemany(
+                        "INSERT INTO rollup (day, scope, repo, framework, language, page_language, metric, k1, k2, k3, n) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (day, scope, repo, framework, language, page_language, "
+                        "metric, k1, k2, k3) DO UPDATE SET n = n + excluded.n", [(*k, n) for k, n in rows.items()])
+                    self._delete_ids(ids)
+                    self._db.commit()
+                except BaseException:
+                    self._db.rollback()
+                    self._known = None                              # re-read what the rollup really holds
+                    raise
+            gone += len(heals)
+            if once:
+                return gone
+
+    def _expire_images(self, where: str, args: tuple) -> int:
+        """Delete the bytes of the images matching `where`; the row stays, empty and marked, so the API can say the image
+        expired. Returns how many."""
+        with self._lock:
+            cur = self._db.execute(f"UPDATE overlays SET png = ?, expired_at = ? WHERE expired_at IS NULL AND {where}",
+                                   (_NO_IMAGE, self.clock(), *args))
+            self._db.commit()
+            return cur.rowcount
+
+    def used_bytes(self) -> int:
+        """Bytes of the database file in use: the pages that hold data, not the free pages a delete leaves behind (those are
+        reused by the next insert, so a file stops growing at the cap even though it does not shrink on its own)."""
+        with self._lock:
+            pages = self._db.execute("PRAGMA page_count").fetchone()[0] - self._db.execute("PRAGMA freelist_count").fetchone()[0]
+            return pages * self._db.execute("PRAGMA page_size").fetchone()[0]
+
     def purge(self) -> None:
-        """Delete everything older than the retention period. With retention 0 finish() already deletes each heal as it
-        ends, and a purge must not remove one still in conversation, so there is nothing to do here."""
+        """Enforce retention. A record older than HEAL_RETENTION_DAYS is counted into the rollup and deleted; the bytes of an
+        image older than HEAL_OVERLAY_RETENTION_DAYS are deleted and its heal stays; then the size cap, if set. With retention
+        0 finish() already deletes each heal as it ends, and a purge must not remove one still in conversation, so there is
+        nothing to do here. Running it again changes nothing."""
         if self.retention_days == 0:
             return
-        cutoff = self.clock() - self.retention_days * DAY
-        self._delete_heals("created_at < ?", (cutoff,))
-        self._run("DELETE FROM overlays WHERE created_at < ?", (cutoff,))
-        self._run("DELETE FROM decisions WHERE created_at < ?", (cutoff,))
+        try:
+            now = self.clock()
+            cutoff = now - self.retention_days * DAY
+            self._roll_up_and_delete("created_at < ?", (cutoff,))
+            self._expire_images("created_at < ?", (now - self.image_days * DAY,))
+            self._run("DELETE FROM overlays WHERE created_at < ?", (cutoff,))
+            self._run("DELETE FROM decisions WHERE created_at < ?", (cutoff,))
+            if self.max_db_bytes:
+                self._enforce_cap(now)
+        except Exception:                      # a purge that cannot finish must not fail the request that triggered it
+            log.exception("purge failed: nothing was lost, it is tried again on the next request")
+
+    def _enforce_cap(self, now: float) -> None:
+        """Get under HEAL_MAX_DB_MB: the oldest images first, then the oldest records (rolled up first), those past the
+        durability window before any younger one. A younger record goes only when nothing else is left to free, and says so."""
+        over = self.used_bytes() - self.max_db_bytes
+        if over <= 0:
+            self._cap_stuck = False
+            return
+        imaged = 0
+        while over > 0:                                           # 1. images, oldest first, as many as the excess needs
+            rows = self._run("SELECT heal_id, length(png) AS n FROM overlays WHERE expired_at IS NULL "
+                             "ORDER BY created_at, heal_id LIMIT 200")
+            if not rows:
+                break
+            take, freed = [], 0
+            for r in rows:
+                take.append(r["heal_id"])
+                freed += r["n"]
+                if freed >= over:
+                    break
+            self._expire_images(f"heal_id IN ({', '.join('?' * len(take))})", tuple(take))
+            imaged += len(take)
+            over = self.used_bytes() - self.max_db_bytes
+        window = now - DURABLE_DAYS * DAY
+        old = 0
+        while over > 0:                                           # 2. records past the durability window, oldest first
+            n = self._roll_up_and_delete("created_at < ?", (window,), max(1, min(ROLLUP_BATCH, over // 1500)), once=True)
+            if not n:
+                break
+            old += n
+            over = self.used_bytes() - self.max_db_bytes
+        forced, size = 0, max(1, min(ROLLUP_BATCH, over // 1500))
+        while over > 0:                                           # 3. the cap forces out a record that could still be measured
+            before = over                                         # never one from the last hour (a conversation may still be
+            n = self._roll_up_and_delete("created_at < ?", (now - PROTECT_S,), size, once=True)      # writing to it)
+            if not n:
+                break
+            forced += n
+            over = self.used_bytes() - self.max_db_bytes
+            if over >= before:                                    # a batch freed no whole page: take a bigger one, and give up
+                if size >= ROLLUP_BATCH:                          # when the biggest frees nothing, rather than empty the store
+                    break
+                size = min(ROLLUP_BATCH, size * 2)
+        if imaged or old:
+            log.info("HEAL_MAX_DB_MB (%g MB): expired %d images and purged %d records past the durability window.",
+                     self.max_db_bytes / MB, imaged, old)
+        if forced:
+            log.warning("HEAL_MAX_DB_MB (%g MB) forced %d heal records younger than %d days out of the store; their counts "
+                        "are kept, but durability (still passing %d days later) can no longer be measured for them. Raise "
+                        "the cap or lower HEAL_OVERLAY_RETENTION_DAYS.", self.max_db_bytes / MB, forced, DURABLE_DAYS,
+                        DURABLE_DAYS)
+        if over > 0 and not self._cap_stuck:
+            log.warning("HEAL_MAX_DB_MB (%g MB): the store cannot get under the cap, nothing is left to purge. Raise the cap.",
+                        self.max_db_bytes / MB)
+        self._cap_stuck = over > 0
+        with self._lock:
+            if self._db.execute("PRAGMA auto_vacuum").fetchone()[0] == 2:       # a file made by this version: give pages back,
+                self._db.execute("PRAGMA incremental_vacuum(2000)")                # 8 MB at a time so a request is never held long
+                self._db.commit()
 
     def purge_if_due(self) -> None:
         """purge(), at most once per PURGE_EVERY_S: every read route calls it, so rows expire even when no new heal
@@ -391,3 +578,58 @@ class Store:
         """A heal reached its final answer: with retention 0 nothing of it is kept."""
         if self.retention_days == 0:
             self._delete_heals("heal_id = ?", (heal_id,))
+
+    # ---- rollup (what purged heals left behind) -----------------------------------------------------------------
+    def rollup_counts(self, since: Optional[float] = None, until: Optional[float] = None, **filters: Any) -> "Counter[Key]":
+        """The counters of the purged heals that match the filters, summed. Only what a rollup row holds can be filtered on
+        (repo, framework, language, page_language and model); a day is in the window when any of it is. A filter the rollup
+        cannot answer (a run, an outcome, a file) matches nothing: rollup_answers() says so beforehand."""
+        if not self.rollup_answers(filters):
+            return Counter()
+        where, args = ["scope = ?"], [filters.get("model") or ""]
+        for d in DIMENSIONS:
+            if filters.get(d) is not None:
+                where.append(f"{d} = ?")
+                args.append(filters[d])
+        if since is not None:
+            where.append("(day + 1) * ? > ?")
+            args += [DAY, since]
+        if until is not None:
+            where.append("day * ? <= ?")
+            args += [DAY, until]
+        rows = self._run("SELECT metric, k1, k2, k3, SUM(n) AS n FROM rollup WHERE " + " AND ".join(where) +
+                         " GROUP BY metric, k1, k2, k3", tuple(args))
+        return Counter({(r["metric"], r["k1"], r["k2"], r["k3"]): r["n"] for r in rows})
+
+    def rollup_by_dimension(self, dimension: str, since: Optional[float] = None, until: Optional[float] = None,
+                            **filters: Any) -> Dict[str, int]:
+        """Archived heals (every mode but advise and diagnose) by the value of one dimension, for the same filters as
+        rollup_counts. A heal with no value for it is left out."""
+        if dimension not in DIMENSIONS or not self.rollup_answers(filters):
+            return {}
+        where, args = ["scope = ?", "metric = 'heals'", f"{dimension} <> ''"], [filters.get("model") or ""]
+        for d in DIMENSIONS:
+            if filters.get(d) is not None:
+                where.append(f"{d} = ?")
+                args.append(filters[d])
+        if since is not None:
+            where.append("(day + 1) * ? > ?")
+            args += [DAY, since]
+        if until is not None:
+            where.append("day * ? <= ?")
+            args += [DAY, until]
+        rows = self._run(f"SELECT {dimension} AS v, SUM(n) AS n FROM rollup WHERE " + " AND ".join(where) + f" GROUP BY {dimension}",
+                         tuple(args))
+        return {r["v"]: int(r["n"]) for r in rows}
+
+    @staticmethod
+    def rollup_answers(filters: Dict[str, Any]) -> bool:
+        """Whether the rollup can answer for these filters: every one that is set is a dimension it keeps, or the model."""
+        return all(v is None or k in DIMENSIONS or k == "model" for k, v in filters.items())
+
+    def rollup_info(self) -> Dict[str, Any]:
+        """How many heals the rollup holds and the span of days it covers (start of the first, end of the last), or Nones."""
+        row = self._run("SELECT COALESCE(SUM(CASE WHEN metric = 'archived' THEN n END), 0) AS heals, MIN(day) AS first, "
+                        "MAX(day) AS last FROM rollup WHERE scope = ''")[0]
+        return {"heals": int(row["heals"]), "from": None if row["first"] is None else row["first"] * DAY,
+                "through": None if row["last"] is None else (row["last"] + 1) * DAY}

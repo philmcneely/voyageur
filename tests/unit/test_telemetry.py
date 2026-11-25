@@ -123,7 +123,7 @@ def test_a_short_retention_logs_one_warning_at_startup_and_a_long_one_none(caplo
     import logging
     from voyageur.core import HealSession
     caplog.set_level(logging.WARNING, logger="voyageur")
-    HealSession.from_env({"HEAL_DB": str(tmp_path / "a.db"), "HEAL_WORKERS": "0"})
+    HealSession.from_env({"HEAL_DB": str(tmp_path / "a.db"), "HEAL_WORKERS": "0", "HEAL_RETENTION_DAYS": "14"})
     warned = [r for r in caplog.records if "HEAL_RETENTION_DAYS" in r.getMessage()]
     assert len(warned) == 1 and "31" in warned[0].getMessage() and "14" in warned[0].getMessage()
     caplog.clear()

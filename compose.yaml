@@ -13,6 +13,8 @@ services:
       HEAL_TEXT_MODEL: ${HEAL_TEXT_MODEL:-}
       HEAL_TEXT_API_KEY: ${HEAL_TEXT_API_KEY:-}
       HEAL_RETENTION_DAYS: ${HEAL_RETENTION_DAYS:-31}
+      HEAL_OVERLAY_RETENTION_DAYS: ${HEAL_OVERLAY_RETENTION_DAYS:-7}
+      HEAL_MAX_DB_MB: ${HEAL_MAX_DB_MB:-0}
     volumes:
       - heal-data:/data
     read_only: true

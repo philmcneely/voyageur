@@ -33,7 +33,9 @@ No token. `{"ok": true, "version": "0.1.0"}`.
   "limits": {"request_bytes": 10485760, "files": 20, "file_bytes": 262144, "inventory": 500, "aria_chars": 262144,
              "screenshot_bytes": 4194304, "screenshot_side_px": 8192, "screenshot_pixels": 16777216,
              "candidate_cap": 30, "max_calls": 2, "max_rounds": 5, "run_token_budget": null},
-  "retention_days": 14,
+  "retention_days": 31,
+  "overlay_retention_days": 7,
+  "max_db_mb": 0,
   "languages": ["python", "typescript"],
   "diagnose": {"enabled": false},
   "library_classes": []
@@ -47,8 +49,12 @@ No endpoint URL and no key is ever returned; `local` says whether the model endp
 `auto` and `on` fall back to text, and the client need not take a screenshot at all (it can read this first).
 
 `durability` says whether the service can measure durability at all: `{"available": false, "needs_retention_days": 31}` when
-`HEAL_RETENTION_DAYS` is 30 or less (the default is 14), because a heal is purged before it can live 30 days. The service logs one warning
+`HEAL_RETENTION_DAYS` is 30 or less (the default is 31), because a heal is purged before it can live 30 days. The service logs one warning
 at startup in that case, and the dashboard's Durability tile says so instead of showing a percentage.
+
+`retention_days`, `overlay_retention_days` and `max_db_mb` are the three data limits the operator set (`HEAL_RETENTION_DAYS`,
+`HEAL_OVERLAY_RETENTION_DAYS`, `HEAL_MAX_DB_MB`): how long a heal record and its marked image are kept, and the optional size cap of the
+store (`0` is no cap). See [What is kept](../README.md#what-is-kept-and-for-how-long).
 
 ### Configuration: `HEAL_LIBRARY_CLASSES`
 
@@ -261,7 +267,11 @@ The audit record: where it happened (repo, test, file, line, page path and langu
 (`outcome`, `reason`, `settled_at`, `ended_at`, `rounds`, `candidates_tried`, `wrong_element`), what was written (`final_locator`,
 `final_kind`, `tier_movement`, `below_floor`, `branch`, `covers`), the verify (`verify_count`, `verify_ref`, `verify_passed`), one row per
 model call in `calls`, and one per candidate in `tries` (`result`: `ok`, `count`, `unverified`, `wrong_element`, `rerun_failed`).
-It holds no file contents, page text, screenshots or model replies. `calls` has a row per model call with its `role` (`text` or
+It holds no file contents, page text, screenshots or model replies. `overlay` says what became of the marked image: `{"state": "kept",
+"bytes": 44012, "expires_at": <epoch>}`, `{"state": "expired", "expired_at": <epoch>}` (the bytes were deleted after `HEAL_OVERLAY_RETENTION_DAYS`
+or to keep the store under `HEAL_MAX_DB_MB`; the record is unchanged) or `{"state": "none"}` (no vision call made one, or images are not
+kept). A record is kept for `HEAL_RETENTION_DAYS` (31 by default), then purged: this route answers 404 for it, but its counts stay in
+`/v1/metrics`. `calls` has a row per model call with its `role` (`text` or
 `vision`), `images` and `step` (3 or 4); when the request asked for vision, `evidence.vision` says what happened: `mode`, `ran`,
 `trigger` (`close_call`, `no_pick`, `refused`, `wrong_element`, `text_none`, `on`), `images`, `marks`, `not_visible`, `result` (`picked`,
 `none`, `mark_not_on_list`, `mark_not_visible`, `not_json`, `refused:<gate>`), `changed` (the vision pick replaced the text pick) and,
@@ -271,9 +281,11 @@ when it did not run, `skipped` (`vision_not_configured`, `images_not_allowed`, `
 ## GET /v1/heals/{id}/overlay.png
 
 The marked image the vision model was shown for that heal: the screenshot cropped to the candidates, downscaled to at most 1024 px on the
-long side, with a numbered box on each candidate (the number is the candidate's position in the list the model got). `image/png`, 404
-when the heal made no vision call or its record has expired. It sits behind the same token as every other route and is sent
-`Cache-Control: private, no-store`. A heal's overlay is kept as long as its record (`HEAL_RETENTION_DAYS`; with 0 nothing is kept).
+long side, with a numbered box on each candidate (the number is the candidate's position in the list the model got). `image/png`; 404
+when the heal made no vision call, this store keeps no images or its record has been purged; **410** when the image expired (its heal
+record is still there, `GET /v1/heals/{id}` says `overlay.state: "expired"`). It sits behind the same token as every other route and is sent
+`Cache-Control: private, no-store`. An image is kept for `HEAL_OVERLAY_RETENTION_DAYS` (7 by default), never longer than its record
+(`HEAL_RETENTION_DAYS`, 31 by default); with 0 for either, no image is stored. Under `HEAL_MAX_DB_MB` the oldest images expire first.
 
 ## GET /v1/heals
 
@@ -306,7 +318,17 @@ file in a spreadsheet never runs a formula. Times are ISO 8601 UTC.
 The headline numbers and the breakdowns behind them, with the same filters as the list (`repo`, `framework`, `language`, `page_language`,
 `run`, `model`, `from`, `to`; with `model` the aggregates cover the heals in which any model call used that model, with all of their calls).
 Advise-mode requests are reported on their own under `advise` and are left out of every rate. A figure with nothing
-to divide by is `null`. Each definition is in `src/voyageur/metrics.py`:
+to divide by is `null`. Each definition is in `src/voyageur/metrics.py`.
+
+**Totals outlive the records.** A heal older than `HEAL_RETENTION_DAYS` is counted into a daily, counts-only rollup before it is purged,
+and every total, rate, breakdown and by-model row below adds those counts, so a number does not drop on the day its heals expire. The
+rollup holds counts under a fixed counter name with the day, repo, framework, client language and page language: no file contents, page
+text, locator, test name, path, run id, error text or model reply. `archive` says what it holds: `{"included": true, "heals": 120, "from":
+<epoch>, "through": <epoch>, "retained_only": ["locators_fixed", "hot_spots", "runs", "latency"]}`. Those four are computed from the records
+still kept because they are not sums. A drill link opens only the heals still kept. Durability is counted at the moment a heal is purged
+(eligible, held, broke again, pending) and cannot be recomputed after. The rollup answers to the filters `repo`, `framework`, `language`,
+`page_language`, `model` and `from` / `to` (by UTC day: a day is in the window when any of it is); a `run` filter reads the records kept
+only and `archive.included` is then `false`. See [What is kept](../README.md#what-is-kept-and-for-how-long).
 
 | Spec number | Keys |
 | --- | --- |
@@ -526,7 +548,8 @@ cause. `failure.stack` should name the failing line in a sent file; the window o
 ## GET /metrics
 
 Prometheus text exposition (version 0.0.4), behind the same bearer token as `/v1` (Prometheus sends it with `authorization` in the scrape
-config). Counters and histograms are kept in memory as events happen, so a restart resets them and they work with `HEAL_RETENTION_DAYS=0`:
+config). Counters and histograms are kept in memory as events happen, so a restart resets them (a Prometheus `rate()` copes), they work with
+`HEAL_RETENTION_DAYS=0` and they never go down when old heal records are purged (the store is not read):
 `voyageur_heals_total{outcome,mode}`, `voyageur_needs_human_total{reason}`, `voyageur_heal_duration_seconds` (histogram),
 `voyageur_model_calls_total{role,model,local,ok}`, `voyageur_model_tokens_total{role,model,direction}`,
 `voyageur_model_images_total`, `voyageur_model_call_duration_seconds` (histogram), `voyageur_cache_hits_total`,

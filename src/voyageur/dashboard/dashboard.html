@@ -512,7 +512,11 @@ function overview(m, params, caps) {
     withModel.heals ? h("div", { class: "note" }, h("a", { href: L(D.outcomes_without_model), text: `${fmt(withModel.heals)} heals made no model call` }),
       ` (${fmt(withModel.healed)} healed, ${fmt(withModel.needs_human)} needs human): a fingerprint match or a triage answer.`) : null,
     h("div", { class: "note", text: m.outcomes_by_model_note + ", so rows can overlap. Cost needs a price per model in HEAL_MODEL_PRICES." }));
-  return [m.truncated ? h("div", { class: "pane thin body", text: "Showing the newest 20,000 heals of this window." }) : null, tiles,
+  /* Older heals are purged after HEAL_RETENTION_DAYS but counted first: the totals above include them, the lists do not. */
+  const arch = m.archive && m.archive.heals
+    ? h("div", { class: "pane thin body muted", text: `Totals include ${fmt(m.archive.heals)} older heals kept as counts only (${when(m.archive.from)} to ${when(m.archive.through)}); their records are purged and open no list. ${(m.archive.retained_only || []).map(words).join(", ")} come from the records still kept.` })
+    : null;
+  return [m.truncated ? h("div", { class: "pane thin body", text: "Showing the newest 20,000 heals of this window." }) : null, arch, tiles,
     h("div", { class: "grid" }, mix, why, settled, moves, kept, wrong, runs, spots, spend, speed, lang, extra), byModel];
 }
 
@@ -591,6 +595,11 @@ function detail(rec, r) {
       h("td", { "data-label": "Result" }, glyph(t.result === "ok" ? "healed" : t.result === "wrong_element" ? "bad" : t.result === "pending" ? "try" : "needs_human", t.result), " ", words(t.result)),
       h("td", { "data-label": "Detail" }, h("span", { class: "mono wrapword", text: t.detail || "" }))))))) : h("div", { class: "empty", text: "No candidate was tried." });
   const ev = rec.evidence && typeof rec.evidence === "object" ? Object.entries(rec.evidence) : [];
+  /* The marked screenshot is kept for a shorter time than the record: say which of kept, expired or never made this heal has. */
+  const ov = rec.overlay || { state: "none" };
+  const overlayText = ov.state === "kept" ? `kept until ${when(ov.expires_at)}`
+    : ov.state === "expired" ? `expired ${when(ov.expired_at)}: the image was deleted to save space, this record stays`
+    : "none: no vision call made one, or images are not kept";
   return [
     h("a", { class: "btn", href: "#/heals" + (back.toString() ? "?" + back.toString() : ""), text: "← Back to the list" }),
     h("section", { class: "pane" }, h("div", { class: "head" }, h("h2", { text: "Heal" }), h("span", { class: "mono muted", text: rec.heal_id })),
@@ -603,11 +612,11 @@ function detail(rec, r) {
         kv("Source", rec.file ? `${rec.file}:${rec.line || ""}` : "", sameLocator), kv("Page path", rec.page_path), kv("Page language", rec.page_language), kv("Time", when(rec.created_at))))),
       h("section", { class: "pane" }, h("h2", { text: "How it ended" }), h("div", { class: "body" }, h("dl", { class: "kv" }, kv("Settled at", rec.settled_at ? `${rec.settled_at} ${STEP[rec.settled_at] || ""}` : ""), kv("Ended at", rec.ended_at ? `${rec.ended_at} ${STEP[rec.ended_at] || ""}` : ""),
         kv("Rounds", rec.rounds), kv("Candidates tried", rec.candidates_tried), kv("Wrong element catches", rec.wrong_element), kv("Tests covered", rec.covers), kv("Decision cache", rec.cache_hit ? "hit" : "miss"),
-        kv("Budget spent", rec.budget_exhausted ? "yes" : "no"), kv("Duration", ms(rec.duration_ms))))),
+        kv("Budget spent", rec.budget_exhausted ? "yes" : "no"), kv("Duration", ms(rec.duration_ms)), kv("Overlay image", overlayText)))),
       h("section", { class: "pane" }, h("h2", { text: "After the PR" }), h("div", { class: "body" }, h("dl", { class: "kv" }, kv("PR state", rec.pr_state ? (PR[rec.pr_state] || words(rec.pr_state)) : "not reported"), kv("Failed again", rec.pr_state ? (rec.failed_again ? "yes" : "no") : ""),
         kv("Runs since", rec.runs_since), kv("Days since", rec.days_since), kv("Reported", when(rec.followup_at))))),
       h("section", { class: "pane" }, h("h2", { text: "Evidence summary" }), h("div", { class: "body" }, ev.length ? h("dl", { class: "kv" }, ev.map(([k, v]) => kv(words(k), typeof v === "object" ? JSON.stringify(v) : v))) : h("div", { class: "empty", text: "None kept." }),
-        h("div", { class: "note", text: "Counts only: the service keeps no file contents, page text or screenshots." })))),
+        h("div", { class: "note", text: "Counts only: the service keeps no file contents or page text and never stores the client's screenshot; the marked overlay image is deleted after a few days." })))),
     panel("Model calls", calls), panel("Candidates tried", tries)];
 }
 

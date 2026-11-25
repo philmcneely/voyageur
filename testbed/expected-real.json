@@ -1,0 +1,819 @@
+{
+  "server": "http://127.0.0.1:8765/",
+  "tests": {
+    "structure": {
+      "python": "test_real_structure",
+      "ts": "real structure"
+    },
+    "abs": {
+      "python": "test_real_abs",
+      "ts": "real abs"
+    },
+    "loose": {
+      "python": "test_real_loose",
+      "ts": "real loose"
+    },
+    "positions": {
+      "python": "test_real_positions",
+      "ts": "real positions"
+    },
+    "xpath": {
+      "python": "test_real_xpath",
+      "ts": "real xpath"
+    },
+    "data": {
+      "python": "test_real_data",
+      "ts": "real data"
+    },
+    "aria": {
+      "python": "test_real_aria",
+      "ts": "real aria"
+    },
+    "text": {
+      "python": "test_real_text",
+      "ts": "real text"
+    },
+    "generated": {
+      "python": "test_real_generated",
+      "ts": "real generated"
+    },
+    "frames": {
+      "python": "test_real_frames",
+      "ts": "real frames"
+    },
+    "frames-nested": {
+      "python": "test_real_frames_nested",
+      "ts": "real frames nested"
+    },
+    "shadow": {
+      "python": "test_real_shadow",
+      "ts": "real shadow"
+    },
+    "scoped": {
+      "python": "test_real_scoped",
+      "ts": "real scoped"
+    },
+    "components": {
+      "python": "test_real_components",
+      "ts": "real components"
+    }
+  },
+  "variants": {
+    "base": {
+      "structure": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "abs": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "loose": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "positions": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "xpath": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "data": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "aria": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "text": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "generated": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "frames": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "frames-nested": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "shadow": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "scoped": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "components": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      }
+    },
+    "v10": {
+      "structure": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 19,
+          "statement": "page.locator(\"div:nth-child(4) > div:nth-child(2) > div:nth-child(2) > div > div > div > div > div > div > div > div > div:nth-child(3) > div > div:nth-child(2) > div > div > div:nth-child(3) > div > div > div > div:nth-child(2) > div > div > div\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 14,
+          "statement": "await page.locator('div:nth-child(4) > div:nth-child(2) > div:nth-child(2) > div > div > div > div > div > div > div > div > div:nth-child(3) > div > div:nth-child(2) > div > div > div:nth-child(3) > div > div > div > div:nth-child(2) > div > div > div').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "abs": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 41,
+          "statement": "page.locator(\"xpath=/html/body/div[2]/div/div[1]/div[3]/div/div\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 36,
+          "statement": "await page.locator('xpath=/html/body/div[2]/div/div[1]/div[3]/div/div').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "loose": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 48,
+          "statement": "page.locator(\"div > div > div > div > div > a\").first.click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 43,
+          "statement": "await page.locator('div > div > div > div > div > a').first().click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "positions": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 62,
+          "statement": "expect(page.get_by_test_id(\"summary\")).to_contain_text(\"hit.n12: Jane\")",
+          "error": "AssertionError: Locator expected to contain text 'hit.n12: Jane'"
+        },
+        "ts": {
+          "result": "failed",
+          "line": 57,
+          "statement": "await expect(page.getByTestId('summary')).toContainText('hit.n12: Jane');",
+          "error": "Error: expect(locator).toContainText(expected) failed"
+        }
+      },
+      "xpath": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 96,
+          "statement": "expect(page.get_by_test_id(\"summary\")).to_contain_text(\"hit.x29: click\")",
+          "error": "AssertionError: Locator expected to contain text 'hit.x29: click'"
+        },
+        "ts": {
+          "result": "failed",
+          "line": 91,
+          "statement": "await expect(page.getByTestId('summary')).toContainText('hit.x29: click');",
+          "error": "Error: expect(locator).toContainText(expected) failed"
+        }
+      },
+      "data": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "aria": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "text": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 167,
+          "statement": "expect(page.get_by_test_id(\"summary\")).to_contain_text(\"hit.t20: click\")",
+          "error": "AssertionError: Locator expected to contain text 'hit.t20: click'"
+        },
+        "ts": {
+          "result": "failed",
+          "line": 162,
+          "statement": "await expect(page.getByTestId('summary')).toContainText('hit.t20: click');",
+          "error": "Error: expect(locator).toContainText(expected) failed"
+        }
+      },
+      "generated": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "frames": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "frames-nested": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "shadow": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 245,
+          "statement": "page.locator('section[role=\"dialog\"] div div button:not(:disabled):nth-child(2)').click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 240,
+          "statement": "await page.locator('section[role=\"dialog\"] div div button:not(:disabled):nth-child(2)').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "scoped": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 262,
+          "statement": "expect(page.get_by_test_id(\"summary\")).to_contain_text(\"hit.c87: click\")",
+          "error": "AssertionError: Locator expected to contain text 'hit.c87: click'"
+        },
+        "ts": {
+          "result": "failed",
+          "line": 257,
+          "statement": "await expect(page.getByTestId('summary')).toContainText('hit.c87: click');",
+          "error": "Error: expect(locator).toContainText(expected) failed"
+        }
+      },
+      "components": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 284,
+          "statement": "expect(page.get_by_test_id(\"summary\")).to_contain_text(\"hit.m94: click\")",
+          "error": "AssertionError: Locator expected to contain text 'hit.m94: click'"
+        },
+        "ts": {
+          "result": "failed",
+          "line": 279,
+          "statement": "await expect(page.getByTestId('summary')).toContainText('hit.m94: click');",
+          "error": "Error: expect(locator).toContainText(expected) failed"
+        }
+      }
+    },
+    "v11": {
+      "structure": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 28,
+          "statement": "page.locator(\"#app-layout-page > section.pf-c-page__main-section.pf-m-no-padding.pf-m-light.appLayout_app-layout--content__1Gx8I > section > div > div > div > div:nth-child(2) > form > div:nth-child(4) > div.pf-c-form__group-control > div\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 23,
+          "statement": "await page.locator('#app-layout-page > section.pf-c-page__main-section.pf-m-no-padding.pf-m-light.appLayout_app-layout--content__1Gx8I > section > div > div > div > div:nth-child(2) > form > div:nth-child(4) > div.pf-c-form__group-control > div').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "abs": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "loose": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 54,
+          "statement": "page.locator(\"button.py-1.px-3\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 49,
+          "statement": "await page.locator('button.py-1.px-3').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "positions": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "xpath": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 89,
+          "statement": "page.get_by_text(\"My subscription\", exact=True).locator(\"xpath=ancestor::div[contains(@class, 'group/row')]\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 84,
+          "statement": "await page.getByText('My subscription', { exact: true }).locator(\"xpath=ancestor::div[contains(@class, 'group/row')]\").click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "data": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 123,
+          "statement": "page.locator(\"data-test=category-space-permission >> .MuiSelect-select\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 118,
+          "statement": "await page.locator('data-test=category-space-permission >> .MuiSelect-select').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "aria": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 142,
+          "statement": "page.locator('button[aria-controls=\"box-busca-refinada\"]').click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 137,
+          "statement": "await page.locator('button[aria-controls=\"box-busca-refinada\"]').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "text": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 172,
+          "statement": "page.locator(\"#tape tr:has(td.c-tool:text-is('Edit')):has-text('billing.py')\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 167,
+          "statement": "await page.locator(\"#tape tr:has(td.c-tool:text-is('Edit')):has-text('billing.py')\").click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "generated": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 188,
+          "statement": "page.locator(\".css-7g0azd\").nth(0).click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 183,
+          "statement": "await page.locator('.css-7g0azd').nth(0).click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "frames": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 219,
+          "statement": "page.frame_locator(\"iframe[name^='ApxSecureIframe']\").get_by_role(\"textbox\", name=\"Card number\").fill(\"4111111111111111\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.fill: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 214,
+          "statement": "await page.frameLocator(\"iframe[name^='ApxSecureIframe']\").getByRole('textbox', { name: 'Card number' }).fill('4111111111111111');",
+          "error": "TimeoutError: locator.fill: Timeout 5000ms exceeded."
+        }
+      },
+      "frames-nested": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "shadow": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 242,
+          "statement": "page.locator(\"lightning-input.pipelineInspectionToggle lightning-primitive-input-toggle\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 237,
+          "statement": "await page.locator('lightning-input.pipelineInspectionToggle lightning-primitive-input-toggle').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "scoped": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 252,
+          "statement": "page.locator(\".ant-select-dropdown:not(.ant-select-dropdown-hidden)\").last.locator(\".ant-select-item-option\").get_by_text(\"Marketing\", exact=True).click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 247,
+          "statement": "await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last().locator('.ant-select-item-option').getByText('Marketing', { exact: true }).click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "components": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 286,
+          "statement": "page.locator(\"#menu-cardRegion ul.MuiMenu-list li\").nth(2).click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 281,
+          "statement": "await page.locator('#menu-cardRegion ul.MuiMenu-list li').nth(2).click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      }
+    },
+    "v12": {
+      "structure": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 25,
+          "statement": "page.locator('[data-qa=\"pnx-occhab-form\"] > div:nth-child(1) > pnx-map > div > div.leaflet-container.leaflet-touch.leaflet-fade-anim.leaflet-grab.leaflet-touch-drag.leaflet-touch-zoom > div.leaflet-control-container > div.leaflet-top.leaflet-left > div.leaflet-draw.leaflet-control > div:nth-child(1) > div > a').click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 20,
+          "statement": "await page.locator('[data-qa=\"pnx-occhab-form\"] > div:nth-child(1) > pnx-map > div > div.leaflet-container.leaflet-touch.leaflet-fade-anim.leaflet-grab.leaflet-touch-drag.leaflet-touch-zoom > div.leaflet-control-container > div.leaflet-top.leaflet-left > div.leaflet-draw.leaflet-control > div:nth-child(1) > div > a').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "abs": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "loose": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "positions": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 64,
+          "statement": "page.locator(\"div.form_group:nth-child(1) > input\").fill(\"standard_user\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.fill: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 59,
+          "statement": "await page.locator('div.form_group:nth-child(1) > input').fill('standard_user');",
+          "error": "TimeoutError: locator.fill: Timeout 5000ms exceeded."
+        }
+      },
+      "xpath": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 107,
+          "statement": "page.locator(\"xpath=//div[contains(@class, 'btn-peel')][not(ancestor::div[contains(@class, 'promotion-discount-card--expired')])]\").click()",
+          "error": "playwright._impl._errors.Error: Locator.click: Error: strict mode violation: locator(\"//div[contains(@class, 'btn-peel')][not(ancestor::div[contains(@class, 'promotion-discount-card--expired')])]\") resolved to 2 elements:"
+        },
+        "ts": {
+          "result": "failed",
+          "line": 102,
+          "statement": "await page.locator(\"xpath=//div[contains(@class, 'btn-peel')][not(ancestor::div[contains(@class, 'promotion-discount-card--expired')])]\").click();",
+          "error": "Error: locator.click: Error: strict mode violation: locator('//div[contains(@class, \\'btn-peel\\')][not(ancestor::div[contains(@class, \\'promotion-discount-card--expired\\')])]') resolved to 2 elements:"
+        }
+      },
+      "data": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 129,
+          "statement": "page.locator('form:nth-of-type(2) >> [data-qa=\"add-to-shopping-cart\"]').click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 124,
+          "statement": "await page.locator('form:nth-of-type(2) >> [data-qa=\"add-to-shopping-cart\"]').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "aria": {
+        "kind": "drift",
+        "also_contains": [
+          "missing"
+        ],
+        "python": {
+          "result": "failed",
+          "line": 160,
+          "statement": "page.locator('button[aria-label*=\"settings\" i]').first.click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 155,
+          "statement": "await page.locator('button[aria-label*=\"settings\" i]').first().click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "text": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 169,
+          "statement": "page.locator('div[class*=\"_switch_\"]:has(div[class*=\"_tit1_\"]:text-is(\"合集\"))').click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 164,
+          "statement": "await page.locator('div[class*=\"_switch_\"]:has(div[class*=\"_tit1_\"]:text-is(\"合集\"))').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "generated": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 203,
+          "statement": "page.locator(\"#\\\\:r1\\\\:-helper-text\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 198,
+          "statement": "await page.locator('#\\\\:r1\\\\:-helper-text').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "frames": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 213,
+          "statement": "page.frame_locator('iframe[name^=\"__privateStripeFrame\"]').first.locator('[name=\"number\"]').fill(\"4242424242424242\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.fill: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 208,
+          "statement": "await page.frameLocator('iframe[name^=\"__privateStripeFrame\"]').first().locator('[name=\"number\"]').fill('4242424242424242');",
+          "error": "TimeoutError: locator.fill: Timeout 5000ms exceeded."
+        }
+      },
+      "frames-nested": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 229,
+          "statement": "page.frame_locator(\"iframe\").first.frame_locator('iframe[name=\"layui-layer-iframe1\"]').locator(\"text=确认\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 224,
+          "statement": "await page.frameLocator('iframe').first().frameLocator('iframe[name=\"layui-layer-iframe1\"]').locator('text=确认').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "shadow": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "scoped": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 270,
+          "statement": "page.locator(\"select\").filter(has=page.locator(\"option[value='pending']\")).first.select_option(\"approved\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.select_option: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 265,
+          "statement": "await page.locator('select').filter({ has: page.locator(\"option[value='pending']\") }).first().selectOption('approved');",
+          "error": "TimeoutError: locator.selectOption: Timeout 5000ms exceeded."
+        }
+      },
+      "components": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 299,
+          "statement": "expect(page.get_by_test_id(\"summary\")).to_contain_text(\"hit.ag103: click\")",
+          "error": "AssertionError: Locator expected to contain text 'hit.ag103: click'"
+        },
+        "ts": {
+          "result": "failed",
+          "line": 294,
+          "statement": "await expect(page.getByTestId('summary')).toContainText('hit.ag103: click');",
+          "error": "Error: expect(locator).toContainText(expected) failed"
+        }
+      }
+    }
+  }
+}

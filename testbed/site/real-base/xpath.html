@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xpath</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<p data-testid="summary"></p>
+<!-- x27 [xpath axis] -->
+<section><div class="flex group/row" data-testid="subscription-row" data-hit="x27"><span>My subscription</span><button>Delete</button></div><div class="flex group/row" data-testid="subscription-row"><span>Other</span><button>Delete</button></div></section>
+<!-- x28 [xpath axis] -->
+<section><div class="overflow-y-auto" data-testid="log-scroll" data-hit="x28"><ol><li>one</li><li>two</li><li>three</li></ol></div></section>
+<!-- x29 [xpath axis] -->
+<section><div class="agent-row"><span>Agent A</span></div><div class="error-alert" role="alert" data-hit="x29">Failed: timeout</div></section>
+<!-- x30 [xpath axis] -->
+<section><div role="tabpanel" style="display: none"><div id="rstudio_source_text_editor1"><div class="ace_content">hidden tab</div></div></div><div role="tabpanel"><div id="rstudio_source_text_editor2"><div class="ace_content" data-testid="source-editor" data-hit="x30">x &lt;- 1</div><div class="ace_lineWidgetContainer"><div class="ace_content">inline widget</div></div></div></div></section>
+<!-- x31 [xpath axis] -->
+<section><table><thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead><tbody><tr data-user="alice"><td>Alice</td><td>a@x.io</td><td data-field="status" data-hit="x31">Active</td></tr><tr data-user="bob"><td>Bob</td><td>b@x.io</td><td data-field="status">Idle</td></tr></tbody></table></section>
+<!-- x33 [xpath axis] -->
+<section><div class="upload" data-testid="upload-resume"><label>Resume</label><button>Attach</button></div><div class="upload" data-testid="upload-cover" data-hit="x33"><label>Cover Letter</label><button>Attach</button></div></section>
+<!-- x34 [xpath axis] -->
+<section><div class="promotion-discount-card promotion-discount-card--expired" data-offer="offer-1"><div class="btn-peel">Get Code</div></div><div class="promotion-discount-card" data-offer="offer-2"><div class="btn-peel" data-hit="x34">Get Code</div></div></section>
+<!-- x36 [xpath axis] -->
+<section><div class="sc-bdnylx-0 gXhnVE" data-hit="x36">Events Without Choices</div><div class="sc-bdnylx-1 kQpWzr">Events With Choices</div></section>
+<!-- x38 [xpath axis] -->
+<section><div class="k-dropdown"><span class="k-search"><input name="role-filter" type="text" data-hit="x38"></span><div class="k-popup"><ul aria-hidden="false"><li>Admin</li></ul></div></div><div class="k-dropdown"><span class="k-search"><input name="team-filter" type="text"></span><div class="k-popup"><ul aria-hidden="true"><li>Core</li></ul></div></div></section>
+<!-- x58 [xpath axis] -->
+<section><div>Start date </div><div class="days"><div class="day">14</div><div class="day picked">15</div><div class="day" data-hit="x58">16</div></div></section>
+<script src="hit.js"></script>
+<script src="components.js"></script>
+</body>
+</html>

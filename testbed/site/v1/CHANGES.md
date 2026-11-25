@@ -1,0 +1,71 @@
+# v1 - renames (pure locator drift)
+
+Same layout and flow as base. Every change is a rename of a label, id, test id, placeholder, button text or tab name. Every broken line is a drift: the element is still where it was, so the correct heal is a new locator for the same element and the same action.
+
+Test lines are looked up by locator text; `py` = tests/python/test_signup.py, `ts` = tests/ts/signup.spec.ts. A line that is not listed still passes.
+
+- step 1 label "Full name" -> "Name and surname"
+  - affects `get_by_label("Full name")` (py L13; ts L10): getByLabel("Name and surname"); same field, same position
+- step 1 label "Email" -> "Email address", placeholder "you@example.com" -> "name@company.com"
+  - affects `get_by_placeholder("you@example.com")` (py L14; ts L11): getByPlaceholder("name@company.com") or getByLabel("Email address")
+- step 1 label "Username" -> "Login handle", data-testid "username-input" -> "account-username"
+  - affects `get_by_test_id("username-input")` (py L15; ts L12): getByTestId("account-username")
+- step 1 password id "password" -> "pwd" (name unchanged)
+  - affects `locator("#password")` (py L16; ts L13): locator("#pwd") or locator("input[name=password]")
+- step 1 confirm: label "Confirm password" -> "Repeat password", id "confirm" -> "pwd2", name "confirm" -> "password_confirm"
+  - affects `locator("input[name=confirm]")` (py L17; ts L14): locator("input[name=password_confirm]") or getByLabel("Repeat password")
+- step 1 button "Next" -> "Continue" (id next -> continue)
+  - affects `get_by_role("button", name="Next")` (py L18; ts L15): getByRole("button", name="Continue")
+- step 2 label "Phone" -> "Mobile number"
+  - affects `get_by_label("Phone")` (py L19; ts L16): getByLabel("Mobile number")
+- step 2 label "Age" -> "Years old"
+  - affects `get_by_role("spinbutton", name="Age")` (py L20; ts L17): getByRole("spinbutton", name="Years old")
+- step 2 label "Birth date" -> "Date of birth"
+  - affects `get_by_label("Birth date")` (py L21; ts L18): getByLabel("Date of birth")
+- step 2 date picker button "Choose delivery date" -> "Pick a delivery day"
+  - affects `get_by_role("button", name="Choose delivery date")` (py L22; ts L19): name="Pick a delivery day"
+- step 2 calendar data-testid "calendar" -> "date-popup"
+  - affects `get_by_test_id("calendar")` (py L23; ts L20): getByTestId("date-popup") (keep the scoped day button)
+- step 2 select name "country" -> "country_code"
+  - affects `locator("select[name=country]")` (py L24; ts L21): locator("select[name=country_code]") or getByLabel("Country")
+- step 2 label "City" -> "Town"
+  - affects `get_by_role("combobox", name="City")` (py L25; ts L22): getByRole("combobox", name="Town")
+- step 2 radio "Express" -> "Fast shipping"
+  - affects `get_by_role("radio", name="Express")` (py L27; ts L24): getByRole("radio", name="Fast shipping")
+- step 2 notes placeholder -> "Anything the courier should know"
+  - affects `get_by_placeholder("Gate code, drop-off instructions")` (py L28; ts L25): getByPlaceholder("Anything the courier should know") or getByLabel("Delivery notes")
+- step 2 button "Next" -> "Continue"
+  - affects `get_by_text("Next", exact=True)` (py L29; ts L26): getByText("Continue", exact=True)
+- step 3 tab "Billing contact" -> "Invoice contact", its field "Billing email" -> "Invoice email"
+  - affects `get_by_role("tab", name="Billing contact")` (py L31,77; ts L28,73): name="Invoice contact"
+  - affects `get_by_label("Billing email")` (py L32,78; ts L29,74): getByLabel("Invoice email")
+- step 3 switch "Weekly digest" -> "Weekly summary"
+  - affects `get_by_role("switch", name="Weekly digest")` (py L30; ts L27): name="Weekly summary"
+- step 3 checkbox labels "Music" -> "Songs", "Travel" -> "Trips", "Marketing emails" -> "Promotional email"
+  - affects `get_by_label("Music")` (py L33; ts L30): getByLabel("Songs")
+  - affects `get_by_label("Travel")` (py L34; ts L31): getByLabel("Trips")
+  - affects `get_by_role("checkbox", name="Marketing emails")` (py L35; ts L32): name="Promotional email"
+- step 3 slider id "budget" -> "spend-limit" (label "Monthly budget" unchanged)
+  - affects `locator("#budget")` (py L36; ts L33): locator("#spend-limit") or getByLabel("Monthly budget")
+- step 3 plan rows "Pro" -> "Growth", "Team" -> "Business"; row buttons "Select" -> "Choose"
+  - affects `get_by_role("row", name="Pro")` (py L37; ts L34): name="Growth"; inner button name="Choose"
+  - affects `get_by_role("row", name="Team")` (py L93; ts L88): name="Business"; inner button name="Choose"
+  - affects `get_by_role("button", name="Select")` (py L37,91,93; ts L34,86,88): name="Choose" (the .nth(1) form keeps its index)
+- step 3 stepper buttons "Increase seats" -> "Add a seat", "Decrease seats" -> "Remove a seat"
+  - affects `get_by_role("button", name="Increase seats")` (py L38,39,95,96,97; ts L35,36,90,91,92): name="Add a seat"
+  - affects `get_by_role("button", name="Decrease seats")` (py L40,98; ts L37,93): name="Remove a seat"
+- step 3 accordion summary "Advanced options" -> "More options", field "Referral code" -> "Invite code"
+  - affects `get_by_text("Advanced options")` (py L41,83; ts L38,79): getByText("More options")
+  - affects `get_by_label("Referral code")` (py L42,84; ts L39,80): getByLabel("Invite code")
+- step 3 payment labels "Name on card" -> "Cardholder", "Card number" -> "Number on card"; cvc name "cvc" -> "security_code"; button id next -> continue
+  - affects `get_by_label("Name on card")` (py L43; ts L40): getByLabel("Cardholder")
+  - affects `get_by_label("Card number")` (py L44; ts L41): getByLabel("Number on card")
+  - affects `locator("input[name=cvc]")` (py L45; ts L42): locator("input[name=security_code]")
+  - affects `locator("#next")` (py L46; ts L43): locator("#continue") or getByRole("button", name="Continue")
+- review buttons "Read terms" -> "View terms", "Close" -> "Dismiss", "Submit order" -> "Place order"; modal checkbox "I agree to the terms" -> "I accept the terms and conditions"
+  - affects `get_by_role("button", name="Read terms")` (py L47; ts L44): name="View terms"
+  - affects `get_by_label("I agree to the terms")` (py L49; ts L46): getByLabel("I accept the terms and conditions")
+  - affects `get_by_role("button", name="Close")` (py L50; ts L47): name="Dismiss"
+  - affects `get_by_role("button", name="Submit order")` (py L51; ts L48): name="Place order"
+- unchanged: layout, flow, field order, the done page data-testids (end-result assertions) and the live-summary box
+  - no test line is affected (nothing to heal).

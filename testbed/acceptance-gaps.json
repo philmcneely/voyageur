@@ -1,0 +1,60 @@
+{
+  "orders/v7": [
+    {
+      "old": "page.locator(\"#app > div > div:nth-child(2) > div.grid > div:nth-child(3) > span.cell\")",
+      "outcome": "needs_human",
+      "reason": "no_identity_proof",
+      "note": "the pick (the golden element) shares no stable attribute, copy or place with what the broken locator says, so it is not proven to be the element the step meant"
+    }
+  ],
+  "orders/v8": [
+    {
+      "old": "page.locator(\"#panel-notes > textarea\")",
+      "outcome": "needs_human",
+      "reason": "no_pick",
+      "note": "the golden element was not on the pick list (candidate cap, action read as none after .first/.nth, or a frame hop)"
+    }
+  ],
+  "orders/v9": [
+    {
+      "old": "page.locator(\"input[name=zip]\")",
+      "outcome": "needs_human",
+      "reason": "no_pick",
+      "note": "the golden element was not on the pick list (candidate cap, action read as none after .first/.nth, or a frame hop)"
+    }
+  ],
+  "real/v10": [],
+  "real/v11": [
+    {
+      "old": "page.locator(\".css-1xc3v61-indicatorContainer\")",
+      "outcome": "needs_human",
+      "reason": "no_pick",
+      "note": "the golden element was not on the pick list (candidate cap, action read as none after .first/.nth, or a frame hop)"
+    }
+  ],
+  "real/v12": [
+    {
+      "old": "page.locator(\"xpath=//div[contains(@class, 'btn-peel')][not(ancestor::div[contains(@class, 'promotion-discount-card--expired')])]\")",
+      "outcome": "needs_human",
+      "reason": "no_pick",
+      "note": "the golden element was not on the pick list (candidate cap, action read as none after .first/.nth, or a frame hop)"
+    },
+    {
+      "old": "page.locator('form:nth-of-type(2) >> [data-qa=\"add-to-shopping-cart\"]')",
+      "outcome": "needs_human",
+      "reason": "no_pick",
+      "note": "the golden element was not on the pick list (candidate cap, action read as none after .first/.nth, or a frame hop)"
+    },
+    {
+      "old": "page.frame_locator('iframe[name=\"editor-canvas\"]').locator(\".wp-block-post-title\")",
+      "outcome": "needs_human",
+      "reason": "target_missing",
+      "note": "no element on the page could be the target (for a step in a frame: the frame the call enters is not on the page, its hop is the broken part)"
+    }
+  ],
+  "drift/drift-renid": [],
+  "drift/drift-fr": [],
+  "drift/drift-dup": [],
+  "drift/drift-noid": [],
+  "drift/drift-gone": []
+}

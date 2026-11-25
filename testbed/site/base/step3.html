@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign up - Preferences and payment</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <p class="step-label">Step 3 of 4</p>
+  <h1>Preferences and payment</h1>
+  <form id="step-form" data-next="review.html" novalidate>
+
+    <div class="tabs">
+      <div role="tablist" aria-label="Preference groups">
+        <button type="button" role="tab" id="tab-notify" aria-selected="true" aria-controls="panel-notify">Notifications</button>
+        <button type="button" role="tab" id="tab-privacy" aria-selected="false" aria-controls="panel-privacy" tabindex="-1">Privacy</button>
+        <button type="button" role="tab" id="tab-billing" aria-selected="false" aria-controls="panel-billing" tabindex="-1">Billing contact</button>
+      </div>
+      <div role="tabpanel" id="panel-notify" aria-labelledby="tab-notify">
+        <div class="field switch-row">
+          <span class="label" id="digest-label">Weekly digest</span>
+          <button type="button" role="switch" aria-checked="false" aria-labelledby="digest-label" data-key="digest"></button>
+        </div>
+      </div>
+      <div role="tabpanel" id="panel-privacy" aria-labelledby="tab-privacy" hidden>
+        <div class="field">
+          <label class="choice"><input type="checkbox" data-key="public"> Show my profile publicly</label>
+        </div>
+      </div>
+      <div role="tabpanel" id="panel-billing" aria-labelledby="tab-billing" hidden>
+        <div class="field">
+          <label for="billing-email">Billing email</label>
+          <input type="email" id="billing-email" name="billing_email" data-key="billing_email" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <fieldset class="field">
+      <legend>Interests</legend>
+      <label class="choice"><input type="checkbox" value="sports" data-key="interests" data-multi> Sports</label>
+      <label class="choice"><input type="checkbox" value="music" data-key="interests" data-multi> Music</label>
+      <label class="choice"><input type="checkbox" value="travel" data-key="interests" data-multi> Travel</label>
+    </fieldset>
+    <div class="field">
+      <label class="choice"><input type="checkbox" data-key="marketing"> Marketing emails</label>
+    </div>
+    <div class="field">
+      <label for="budget">Monthly budget</label>
+      <input type="range" id="budget" name="budget" data-key="budget" min="0" max="100" step="10" value="30">
+      <output for="budget" class="hint"></output>
+    </div>
+
+    <div class="field">
+      <span class="label" id="plans-label">Plan</span>
+      <table class="plans" aria-labelledby="plans-label">
+        <thead><tr><th scope="col">Plan</th><th scope="col">Sites</th><th scope="col">Support</th><th scope="col">Price</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Basic</th><td>Up to 3 sites</td><td>Community</td><td>$0</td><td><button type="button" data-plan="basic" aria-pressed="false">Select</button></td></tr>
+          <tr><th scope="row">Pro</th><td>Unlimited sites</td><td>Priority</td><td>$20</td><td><button type="button" data-plan="pro" aria-pressed="false">Select</button></td></tr>
+          <tr><th scope="row">Team</th><td>Unlimited sites</td><td>Dedicated manager</td><td>$50</td><td><button type="button" data-plan="team" aria-pressed="false">Select</button></td></tr>
+        </tbody>
+      </table>
+      <input type="hidden" data-key="plan" data-required value="">
+    </div>
+
+    <div class="field stepper" data-min="1" data-max="10">
+      <span class="label">Seats</span>
+      <div class="stepper-row">
+        <button type="button" data-step="-1" aria-label="Decrease seats">&minus;</button>
+        <output data-testid="seats-value">1</output>
+        <button type="button" data-step="1" aria-label="Increase seats">+</button>
+      </div>
+      <input type="hidden" data-key="seats" value="1">
+    </div>
+
+    <details>
+      <summary>Advanced options</summary>
+      <div class="field">
+        <label for="referral">Referral code</label>
+        <input type="text" id="referral" name="referral" data-key="referral" autocomplete="off">
+      </div>
+    </details>
+
+    <h2>Payment</h2>
+    <div class="field">
+      <label for="cardname">Name on card</label>
+      <input type="text" id="cardname" name="cardname" data-key="cardname" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="cardnumber">Card number</label>
+      <input type="text" id="cardnumber" name="cardnumber" data-key="card" data-last4 required inputmode="numeric" pattern="[0-9 ]{16,19}" title="16 digits" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="cvc">CVC</label>
+      <input type="password" id="cvc" name="cvc" data-key="cvc" data-nostore required pattern="[0-9]{3,4}" title="3 or 4 digits" autocomplete="off">
+    </div>
+
+    <div class="actions"><button type="submit" class="primary" id="next">Next</button></div>
+    <p class="live" data-live data-testid="live-summary"></p>
+  </form>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

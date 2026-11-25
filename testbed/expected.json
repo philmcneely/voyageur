@@ -1,0 +1,101 @@
+{
+  "server": "http://127.0.0.1:8765/",
+  "tests": {
+    "end_to_end": {
+      "python": "test_signup_end_to_end",
+      "ts": "signup end to end"
+    },
+    "tabs_accordion": {
+      "python": "test_tabs_and_accordion",
+      "ts": "tabs and accordion"
+    },
+    "plan_stepper": {
+      "python": "test_plan_table_and_stepper",
+      "ts": "plan table and stepper"
+    }
+  },
+  "variants": {
+    "base": {
+      "end_to_end": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "tabs_accordion": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "plan_stepper": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      }
+    },
+    "v1": {
+      "end_to_end": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 15,
+          "statement": "page.get_by_label(\"Full name\").fill(\"Jane Doe\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.fill: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 10,
+          "statement": "await page.getByLabel('Full name').fill('Jane Doe');",
+          "error": "TimeoutError: locator.fill: Timeout 5000ms exceeded."
+        }
+      },
+      "tabs_accordion": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 79,
+          "statement": "page.get_by_role(\"tab\", name=\"Billing contact\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 73,
+          "statement": "await page.getByRole('tab', { name: 'Billing contact' }).click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "plan_stepper": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 93,
+          "statement": "page.get_by_role(\"button\", name=\"Select\").nth(1).click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 86,
+          "statement": "await page.getByRole('button', { name: 'Select' }).nth(1).click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      }
+    }
+  }
+}

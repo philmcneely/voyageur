@@ -1,0 +1,97 @@
+{
+  "tests": {
+    "test_profile_settings": "profile settings",
+    "test_save_by_test_id": "save by test id",
+    "test_delete_account": "delete account"
+  },
+  "variants": {
+    "drift-renid": [
+      {
+        "test": "test_profile_settings",
+        "old": "page.locator(\"#display-name\")",
+        "new": "page.get_by_test_id(\"display-name-input\")",
+        "target": "page.get_by_test_id(\"display-name-input\")",
+        "expect": {
+          "outcome": "healed",
+          "settled_at": 2,
+          "tier_movement": "up",
+          "branch": false
+        }
+      }
+    ],
+    "drift-fr": [
+      {
+        "test": "test_profile_settings",
+        "old": "page.get_by_role(\"checkbox\", name=\"Email me the newsletter\")",
+        "new": "page.locator(\"[data-pref=newsletter]\")",
+        "target": "page.locator(\"[data-pref=newsletter]\")",
+        "expect": {
+          "outcome": "healed",
+          "tier_movement": "up",
+          "branch": false
+        }
+      },
+      {
+        "test": "test_profile_settings",
+        "old": "page.get_by_role(\"button\", name=\"Save changes\")",
+        "new": "page.get_by_test_id(\"save-settings\")",
+        "target": "page.locator(\"#save\")",
+        "expect": {
+          "outcome": "healed",
+          "tier_movement": "up",
+          "branch": false
+        }
+      },
+      {
+        "test": "test_delete_account",
+        "old": "page.get_by_role(\"button\", name=\"Delete account\")",
+        "new": "page.get_by_test_id(\"delete-account\")",
+        "target": "page.locator(\"#delete\")",
+        "expect": {
+          "outcome": "healed",
+          "tier_movement": "up",
+          "branch": false
+        }
+      }
+    ],
+    "drift-dup": [
+      {
+        "test": "test_profile_settings",
+        "old": "page.get_by_role(\"button\", name=\"Save changes\")",
+        "new": "page.get_by_test_id(\"save-settings\")",
+        "target": "page.locator(\"#save\")",
+        "expect": {
+          "outcome": "healed",
+          "settled_at": 2,
+          "tier_movement": "up",
+          "branch": false
+        }
+      }
+    ],
+    "drift-noid": [
+      {
+        "test": "test_save_by_test_id",
+        "old": "page.get_by_test_id(\"save-settings\")",
+        "new": "page.locator(\"#save\")",
+        "target": "page.locator(\"#save\")",
+        "expect": {
+          "outcome": "healed",
+          "tier_movement": "down",
+          "below_floor": true,
+          "branch": false
+        }
+      }
+    ],
+    "drift-gone": [
+      {
+        "test": "test_delete_account",
+        "old": "page.get_by_role(\"button\", name=\"Delete account\")",
+        "new": null,
+        "target": null,
+        "expect": {
+          "outcome": "needs_human"
+        }
+      }
+    ]
+  }
+}

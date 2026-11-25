@@ -1,0 +1,90 @@
+# v11 - attribute churn
+
+Same structure. Generated ids and hash classes regenerate, test-hook attributes are renamed, aria-labels and copy change, library versions rename internals. The right heal is whatever stable attribute is left on the same element (never a generated id, never the new copy when a hook exists).
+
+Lines are tests/python/test_real.py (py) and tests/ts/real.spec.ts (ts); heals are written in the python syntax and follow the locator policy: test id > hand-written id > name > css on a non-copy attribute > role+name > label > text > structural chain. `verify_golden.py --spec real` applies every heal listed here and runs the suite. A line that is not listed still passes.
+
+- [structural chain] `s4`: css-module hash `__1Gx8I` -> `__Zr7Qd` (a rebuild)
+  - affects `page.locator("#app-layout-page > section.pf-c-page__main-section.pf-m-no-padding.pf-m-light.appLayout_app-layout--content__1Gx8I > section > div > div > div > div:nth-child(2) > form > div:nth-child(4) > div.pf-c-form__group-control > div")` (py L28; ts L23): the hash class no longer matches; the field has a name attribute. Heal: `page.locator('input[name="search"]')`
+- [structural chain] `s5`: `useId` `:r2u:` -> `:r5k:`, both css-module hashes regenerate
+  - affects `page.locator('[id="accordion-item-\\:r2u\\:"] > .-esm-form-engine__page-renderer__formSection___NMgiH > .-esm-form-engine__section-renderer__section___m5psJ > div > div > .cds--fieldset > .cds--form-item > .cds--radio-button-group > div:nth-child(2) > .cds--radio-button__label > .cds--radio-button__appearance')` (py L31; ts L26): the id and both hashes are new; the radio's label text is all that is stable. Heal: `page.get_by_text("Yes", exact=True)`
+- [utility class] `g70b`: a restyle: `py-1 px-3` -> `py-2 px-4`
+  - affects `page.locator("button.py-1.px-3")` (py L54; ts L49): the utilities are the only hook in the selector; the button has a test id. Heal: `page.get_by_test_id("save-draft")`
+- [xpath axis] `x27`: tailwind marker `group/row` -> `group/item`
+  - affects `page.get_by_text("My subscription", exact=True).locator("xpath=ancestor::div[contains(@class, 'group/row')]")` (py L89; ts L84): the climb's class is gone; the rows have a test id. Heal: `page.get_by_test_id("subscription-row").filter(has_text="My subscription")`
+- [xpath axis] `x28`: `overflow-y-auto` -> `overflow-auto`
+  - affects `page.locator("ol").locator("xpath=ancestor::div[contains(@class,'overflow-y-auto')][1]")` (py L92; ts L87): the utility class used as a hook was renamed; the container has a test id. Heal: `page.get_by_test_id("log-scroll")`
+- [xpath axis] `x30`: the editor adds a state class: `ace_content` -> `ace_content ace_focus`
+  - affects `page.locator("xpath=//div[@role='tabpanel' and not(contains(@style, 'display: none'))]//*[starts-with(@id,'rstudio_source_text_editor')]//*[@class='ace_content' and not(ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ace_lineWidgetContainer ')])]")` (py L98; ts L93): `@class='ace_content'` is an equality test and no longer holds; the editor has a test id. Heal: `page.locator('[role="tabpanel"]:visible').get_by_test_id("source-editor")`
+- [xpath axis] `x31`: header `Status` -> `State`
+  - affects `page.locator("//tr[td[text()='Alice']]/td[count(//th[text()='Status']/preceding-sibling::th)+1]")` (py L101; ts L96): the header text is the xpath's anchor; the cell has a data-field and the row a data-user. Heal: `page.locator('tr[data-user="alice"] td[data-field="status"]')`
+- [xpath axis] `x33`: copy `Cover Letter` -> `Cover letter`
+  - affects `page.locator("xpath=//*[normalize-space(text())='Cover Letter']/ancestor::*[.//button[contains(.,'Attach')]][1]")` (py L104; ts L99): the text anchor is case sensitive; the block has a test id. Heal: `page.get_by_test_id("upload-cover")`
+- [xpath axis] `x36`: styled-components id `sc-bdnylx-0` -> `sc-hdqfvb-1` (component order changed)
+  - affects `page.locator("//div[contains(@class, 'sc-') and contains(@class, '-0 ') and contains(text(), 'Events Without Choices')]")` (py L110; ts L105): the `-0 ` suffix no longer holds; only the header text is left. Heal: `page.get_by_text("Events Without Choices", exact=True)`
+- [xpath axis] `x58`: the label loses its trailing space: `Start date ` -> `Start date`
+  - affects `page.locator("//div[text()='Start date ']/following::div[contains(@class,'day picked')]/following-sibling::div[1]")` (py L116; ts L111): `text()='Start date '` is an exact match; the state class is the stable anchor. Heal: `page.locator("div.day.picked + div.day")`
+- [data attribute] `d40`: `data-test` -> `data-testid`
+  - affects `page.locator("data-test=category-space-permission >> .MuiSelect-select")` (py L123; ts L118): the attribute name changed; the default test id attribute now carries it. Heal: `page.get_by_test_id("category-space-permission").locator(".MuiSelect-select")`
+- [data attribute] `d41`: select name `user_role` -> `permission`
+  - affects `page.locator('select[name*="role" i], [data-testid*="role-select"], [role="listbox"]:near(:text("role"))')` (py L126; ts L121): none of the three strategies matches any more; the select has a test id. Heal: `page.get_by_test_id("role-picker")`
+- [data attribute] `d43`: `data-qa` -> `data-testid` on the cards
+  - affects `page.locator('[data-qa="vacancy-serp__vacancy"]').first` (py L132; ts L127): same value under the test id attribute. Heal: `page.get_by_test_id("vacancy-serp__vacancy").first`
+- [aria] `a46`: the controlled id is renamed `box-busca-refinada` -> `box-refined-search`
+  - affects `page.locator('button[aria-controls="box-busca-refinada"]')` (py L142; ts L137): aria-controls follows a dev-chosen id; the button has a test id. Heal: `page.get_by_test_id("advanced-search-toggle")`
+- [aria] `a47`: the form class is renamed: `virtualmachinecataloguesyncform` -> `vmcatalogsyncform`
+  - affects `page.locator('[aria-labelledby="select2-virtualmachinecataloguesyncform-data_center_id-container"]')` (py L145; ts L140): the embedded form name changed; the field-name part of the id is stable. Heal: `page.locator('span.select2-selection[aria-labelledby*="data_center_id"]')`
+- [aria] `a48`: taxonomy renamed `CSETv1` -> `CSETv2` in the labels
+  - affects `page.locator('[aria-label="CSETv1:Physical Objects:no"]')` (py L148; ts L143): the label embeds the taxonomy version; name and value are stable. Heal: `page.locator('input[name="physical_objects"][value="no"]')`
+- [aria] `a49`: the label is trimmed: ` Pending ` -> `Pending`
+  - affects `page.locator('//span[@aria-label=" Pending "]')` (py L151; ts L146): the xpath compares the label exactly; the icon has a test id. Heal: `page.get_by_test_id("msg-status")`
+- [aria] `a50`: aria-label `Row actions` -> `Actions for row`
+  - affects `page.locator('[popover="auto"][role="group"][aria-label="Row actions"]').get_by_role("button", name="Edit")` (py L157; ts L152): the label is part of the selector; the popover has a hand-written id. Heal: `page.locator("#row-pop").get_by_role("button", name="Edit")`
+- [text] `t53`: css-module hashes change: `_3kd9x` -> `_9ab1c`, `_a81Zq` -> `_k2Lm7`
+  - py L169; ts L164 stays green: the selector matches the stable infixes `_switch_` and `_tit1_`, not the hash
+- [text] `t54`: tool label `Edit` -> `Modify`
+  - affects `page.locator("#tape tr:has(td.c-tool:text-is('Edit')):has-text('billing.py')")` (py L172; ts L167): the exact text of the tool cell changed; the row has a data-tool. Heal: `page.locator('#tape tr[data-tool="edit"]:has-text("billing.py")')`
+- [text] `t55`: icon-font update: ligature `image` -> `photo`
+  - affects `page.locator("[role='tab']:has(i.google-symbols:text-is('image'))")` (py L175; ts L170): ligature names change between icon-font versions; the tab controls a panel. Heal: `page.locator('[role="tab"][aria-controls="panel-images"]')`
+- [text] `t59`: typographic apostrophes: `What's the patient's` -> `What’s the patient’s`
+  - affects `page.locator("xpath=//label[contains(text(), \"What's the patient's birth date?\")]")` (py L181; ts L176): the sentence uses ASCII apostrophes; the label points at the input by id. Heal: `page.locator('label[for="birthdate"]')`
+- [generated class] `g60`: a style edit changes the emotion hash `css-7g0azd` -> `css-1k4s9d`
+  - affects `page.locator(".css-7g0azd").nth(0)` (py L188; ts L183): the hash derives from the style content; the items have a test id. Heal: `page.get_by_test_id("asset-item").nth(0)`
+- [generated class] `g61`: emotion hash `css-1xc3v61` -> `css-1xzq8d1`
+  - affects `page.locator(".css-1xc3v61-indicatorContainer")` (py L191; ts L186): the hash prefix changed; the suffix `-indicatorContainer` and the test-id scope are stable. Heal: `page.locator('[data-testid="region-select"] [class$="-indicatorContainer"]')`
+- [generated class] `g63`: the instance counter shifts: `react-select-2-` -> `react-select-3-` (another select renders first)
+  - affects `page.locator("//div[contains(@id,'react-select-2-placeholder')]")` (py L194; ts L189): the counter is render order; the id suffix is stable. Heal: `page.locator('[data-testid="region-select"] [id$="-placeholder"]')`
+- [generated class] `g62`: another select renders first: instance 3 -> 4
+  - affects `page.locator("#react-select-3-option-6")` (py L197; ts L192): the instance counter changed; the option's index suffix and the select's test id are stable. Heal: `page.locator('[data-testid="city-select"] [id$="-option-6"]')`
+- [generated id] `g65`: `useId` output `:Rajsq:` -> `:R1ajsq:`
+  - affects `page.locator("#\\:Rajsq\\:-form-item")` (py L200; ts L195): the id follows render order; the input has a name. Heal: `page.locator('input[name="fullName"]')`
+- [generated class] `g67`: the library renames `MuiTreeView-root` -> `MuiSimpleTreeView-root` (major version)
+  - affects `page.locator(".MuiTreeView-root ul > div > div > li:nth-child(3) button:nth-child(2)")` (py L206; ts L201): the root class changed; the button has an aria-label. Heal: `page.get_by_role("button", name="Delete file")`
+- [frame] `f71a`: the random frame suffix changes: `__privateStripeFrame1234` -> `__privateStripeFrame9876`
+  - py L213; ts L208 stays green: the selector matches the stable prefix `__privateStripeFrame`
+- [frame] `f73`: the frame name `ApxSecureIframe...` -> `AmazonPayFrame...`
+  - affects `page.frame_locator("iframe[name^='ApxSecureIframe']").get_by_role("textbox", name="Card number")` (py L219; ts L214): the prefix is gone; the frame has a title. Heal: `page.frame_locator('iframe[title="Secure payment"]').get_by_role("textbox", name="Card number")`
+- [shadow dom] `w79`: the vendor renames its internal component: `lightning-primitive-input-toggle` -> `lightning-input-toggle`
+  - affects `page.locator("lightning-input.pipelineInspectionToggle lightning-primitive-input-toggle")` (py L242; ts L237): the internal tag changed in a vendor release; the checkbox inside it is still an input of type checkbox. Heal: `page.locator('lightning-input.pipelineInspectionToggle input[type="checkbox"]')`
+- [scoped chain] `c84`: the hidden-state class `ant-select-dropdown-hidden` -> `ant-select-dropdown-hide stale`
+  - affects `page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").last.locator(".ant-select-item-option").get_by_text("Marketing", exact=True)` (py L252; ts L247): the negation no longer excludes the stale copy, so `.last` is the hidden one; role+name ignores hidden elements. Heal: `page.get_by_role("option", name="Marketing", exact=True)`
+- [scoped chain] `c85`: copy `Add New Tag` -> `New tag`
+  - affects `page.locator("mat-menu").filter(has=page.locator('button:has-text("Add New Tag")'))` (py L255; ts L250): the filter keys on the button's text; the menu has a data attribute. Heal: `page.locator('mat-menu[data-menu="tag"]')`
+- [scoped chain] `c86`: a badge is added to the name: `Alpha` -> `Alpha <i>new</i>`
+  - affects `page.locator(".agent-option").filter(has=page.locator(".agent-option-name", has_text=re.compile(r"^Alpha$")))` (py L258; ts L253): `^Alpha$` is anchored; the option has a data-agent. Heal: `page.locator('.agent-option[data-agent="alpha"]')`
+- [scoped chain] `c88`: the container's test id is renamed `on-call-direct-page` -> `oncall-page-card`
+  - affects `page.get_by_text("Row A", exact=True).locator("xpath=ancestor::*[@data-testid='on-call-direct-page']").get_by_test_id("on-call-direct-page-label")` (py L264; ts L259): the climb's anchor is gone; the label has its own test id. Heal: `page.get_by_test_id("on-call-direct-page-label")`
+- [scoped chain] `c89`: icon library update: `pen-to-square` -> `edit`
+  - affects `page.locator(".ant-table-row").first.locator('button:has(svg[data-icon="pen-to-square"])')` (py L267; ts L262): the icon was renamed; the button has an accessible name. Heal: `page.locator(".ant-table-row").first.get_by_role("button", name="Edit template")`
+- [component library] `m97`: the field is renamed: popup id `menu-cardRegion` -> `menu-region`
+  - affects `page.locator("#menu-cardRegion ul.MuiMenu-list li").nth(2)` (py L286; ts L281): the popup id derives from the field name; the option has a data-value. Heal: `page.locator('li[data-value="EU"]')`
+- [component library] `rs101b`: `classNamePrefix` renamed `react-select` -> `rs`, and v5 adds `role=option`
+  - affects `page.locator("#country .react-select__option").nth(0)` (py L295; ts L290): the prefix is gone; options carry a role now. Heal: `page.locator("#country").get_by_role("option").nth(0)`
+- [component library] `ag105`: copy `Needs you` -> `Action required`
+  - affects `page.locator(".ag-row", has_text="Needs you").locator("[col-id=buyer]")` (py L304; ts L299): the row is found by its status text; the row id is stable. Heal: `page.locator('.ag-row[row-id="44"] [col-id="buyer"]')`
+- [component library] `s111`: `--outside-month` -> `--outside`
+  - affects `page.locator(".react-datepicker__day--001:not(.react-datepicker__day--outside-month)")` (py L310; ts L305): the negated modifier was renamed, so both `--001` cells match (strict mode error). Heal: `page.locator(".react-datepicker__day--001:not(.react-datepicker__day--outside)")`
+- [component library] `s113`: the portal marker `data-headlessui-portal` -> `data-headlessui-portal-root`
+  - affects `page.locator("[data-headlessui-portal]").get_by_role("option", name="Beta", exact=True)` (py L313; ts L308): the root attribute is renamed; the option's role and name are enough. Heal: `page.get_by_role("option", name="Beta", exact=True)`
+
+Every other entry of the catalog is unchanged and passes.

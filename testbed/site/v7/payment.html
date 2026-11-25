@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure card entry</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="_frame-body_ee071">
+<form id="card-form" class="_card-form_fa01c" novalidate>
+  <div class="_field_06e3d">
+    <label for="card">Card number</label>
+    <input type="text" id="card" name="card" inputmode="numeric" autocomplete="off">
+  </div>
+  <div class="_field_06e3d">
+    <label for="exp">Expiry</label>
+    <input type="text" id="exp" name="exp" placeholder="MM/YY" autocomplete="off">
+  </div>
+  <div class="_actions_ebb67"><button type="submit" class="_btn_d4f5c _primary_386bb">Pay now</button></div>
+  <p class="_hint_ee2fa" data-testid="frame-status"></p>
+</form>
+<script>
+(function () {
+  var form = document.getElementById('card-form');
+  var status = document.querySelector('[data-testid=frame-status]');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var digits = form.elements.card.value.replace(/\D/g, '');
+    var ok = digits.length >= 12;
+    status.textContent = ok ? 'accepted' : 'declined';
+    parent.postMessage({ type: 'payment', status: ok ? 'ok' : 'declined', last4: digits.slice(-4),
+                         exp: form.elements.exp.value }, '*');
+  });
+})();
+</script>
+</body>
+</html>

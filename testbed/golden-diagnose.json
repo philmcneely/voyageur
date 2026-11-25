@@ -1,0 +1,132 @@
+{
+  "cases": [
+    {
+      "id": "stale_expectation_reworded",
+      "variant": "diag-reworded",
+      "test": "test_save_profile",
+      "prior_heals": [],
+      "expect": {
+        "cause": "stale_expectation",
+        "revert_idx": null,
+        "patch": {
+          "from": "\"saved: profile newsletter=no\"",
+          "to": "\"Settings saved (newsletter: no)\""
+        }
+      }
+    },
+    {
+      "id": "app_bug_dead_button",
+      "variant": "diag-noop",
+      "test": "test_save_profile",
+      "prior_heals": [],
+      "expect": {
+        "cause": "app_bug",
+        "revert_idx": null,
+        "patch": null
+      }
+    },
+    {
+      "id": "timing_late_render",
+      "variant": "diag-slow",
+      "test": "test_save_profile",
+      "prior_heals": [],
+      "expect": {
+        "cause": "timing",
+        "revert_idx": null,
+        "patch": {
+          "from": "\"saved: profile newsletter=no\", timeout=TIMEOUT)",
+          "to": "\"saved: profile newsletter=no\", timeout=10000)"
+        }
+      }
+    },
+    {
+      "id": "data_name_too_short",
+      "variant": "diag-strict",
+      "test": "test_save_short_name",
+      "prior_heals": [],
+      "expect": {
+        "cause": "test_data_or_env",
+        "revert_idx": null,
+        "patch": null
+      }
+    },
+    {
+      "id": "flow_confirmation_step",
+      "variant": "diag-confirm",
+      "test": "test_delete_account",
+      "prior_heals": [],
+      "expect": {
+        "cause": "flow_changed",
+        "revert_idx": null,
+        "patch": null
+      }
+    },
+    {
+      "id": "earlier_heal_chose_the_other_button",
+      "variant": "drift-dup",
+      "test": "test_save_profile",
+      "prior_heals": [
+        {
+          "from": "page.get_by_role(\"button\", name=\"Save changes\").click()",
+          "to": "page.get_by_test_id(\"save-notifications\").click()",
+          "applied": true,
+          "anchor": "page.get_by_role(\"button\", name=\"Save changes\").click()"
+        }
+      ],
+      "expect": {
+        "cause": "earlier_heal_wrong_element",
+        "revert_idx": 0,
+        "patch": null
+      }
+    },
+    {
+      "id": "reverted_heal_is_no_cause",
+      "variant": "diag-noop",
+      "test": "test_save_profile",
+      "prior_heals": [
+        {
+          "from": "page.locator(\"#name\")",
+          "to": "page.get_by_label(\"Display name\")",
+          "applied": false,
+          "anchor": "page.locator(\"#display-name\").fill("
+        }
+      ],
+      "expect": {
+        "cause": "app_bug",
+        "revert_idx": null,
+        "patch": null
+      }
+    },
+    {
+      "id": "heal_elsewhere_is_no_cause",
+      "variant": "diag-slow",
+      "test": "test_save_profile",
+      "prior_heals": [
+        {
+          "from": "page.locator(\"#save-button\")",
+          "to": "page.get_by_role(\"button\", name=\"Save changes\")",
+          "applied": false,
+          "file": "pages/profile_page.py",
+          "line": 12
+        }
+      ],
+      "expect": {
+        "cause": "timing",
+        "revert_idx": null,
+        "patch": {
+          "from": "\"saved: profile newsletter=no\", timeout=TIMEOUT)",
+          "to": "\"saved: profile newsletter=no\", timeout=10000)"
+        }
+      }
+    },
+    {
+      "id": "locator_gone_is_a_heal",
+      "variant": "drift-gone",
+      "test": "test_delete_account",
+      "prior_heals": [],
+      "expect": {
+        "status": "not_applicable"
+      }
+    }
+  ]
+}

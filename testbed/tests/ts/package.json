@@ -1,0 +1,12 @@
+{
+  "name": "visual-heal-testbed-ts",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright (TS) suite for the visual-heal testbed site",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

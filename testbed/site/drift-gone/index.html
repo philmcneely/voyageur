@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account settings</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <h1>Account settings</h1>
+  <section id="profile" class="panel" data-testid="profile-panel">
+    <h2>Profile</h2>
+    <div class="field">
+      <label for="display-name">Display name</label>
+      <input type="text" id="display-name" name="display_name" data-testid="display-name-input" autocomplete="off">
+    </div>
+    <label class="check"><input type="checkbox" data-pref="newsletter"> Email me the newsletter</label>
+    <div class="actions"><button type="button" id="save" data-testid="save-settings">Save changes</button></div>
+  </section>
+  <p class="status" id="summary" data-testid="summary">idle</p>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1013 @@
+{
+  "tests": {
+    "structure": {
+      "python": "test_real_structure",
+      "ts": "real structure"
+    },
+    "abs": {
+      "python": "test_real_abs",
+      "ts": "real abs"
+    },
+    "loose": {
+      "python": "test_real_loose",
+      "ts": "real loose"
+    },
+    "positions": {
+      "python": "test_real_positions",
+      "ts": "real positions"
+    },
+    "xpath": {
+      "python": "test_real_xpath",
+      "ts": "real xpath"
+    },
+    "data": {
+      "python": "test_real_data",
+      "ts": "real data"
+    },
+    "aria": {
+      "python": "test_real_aria",
+      "ts": "real aria"
+    },
+    "text": {
+      "python": "test_real_text",
+      "ts": "real text"
+    },
+    "generated": {
+      "python": "test_real_generated",
+      "ts": "real generated"
+    },
+    "frames": {
+      "python": "test_real_frames",
+      "ts": "real frames"
+    },
+    "frames-nested": {
+      "python": "test_real_frames_nested",
+      "ts": "real frames nested"
+    },
+    "shadow": {
+      "python": "test_real_shadow",
+      "ts": "real shadow"
+    },
+    "scoped": {
+      "python": "test_real_scoped",
+      "ts": "real scoped"
+    },
+    "components": {
+      "python": "test_real_components",
+      "ts": "real components"
+    }
+  },
+  "variants": {
+    "v10": [
+      {
+        "key": "s1",
+        "page": "structure",
+        "old": {
+          "python": "page.locator(\"div:nth-child(4) > div:nth-child(2) > div:nth-child(2) > div > div > div > div > div > div > div > div > div:nth-child(3) > div > div:nth-child(2) > div > div > div:nth-child(3) > div > div > div > div:nth-child(2) > div > div > div\")",
+          "ts": "page.locator('div:nth-child(4) > div:nth-child(2) > div:nth-child(2) > div > div > div > div > div > div > div > div > div:nth-child(3) > div > div:nth-child(2) > div > div > div:nth-child(3) > div > div > div > div:nth-child(2) > div > div > div')"
+        },
+        "new": {
+          "python": "page.get_by_text(\"Hi there, is the build green?\", exact=True)",
+          "ts": "page.getByText('Hi there, is the build green?', { exact: true })"
+        }
+      },
+      {
+        "key": "s2",
+        "page": "structure",
+        "old": {
+          "python": "page.locator(\"div:nth-child(3) > div:nth-child(2) > div > div > div > .css-view-175oi2r\")",
+          "ts": "page.locator('div:nth-child(3) > div:nth-child(2) > div > div > div > .css-view-175oi2r')"
+        },
+        "new": {
+          "python": "page.get_by_text(\"Sign in with SSO\", exact=True)",
+          "ts": "page.getByText('Sign in with SSO', { exact: true })"
+        }
+      },
+      {
+        "key": "s6",
+        "page": "structure",
+        "old": {
+          "python": "page.locator('//*[@id=\"app\"]/div[1]/div[3]/div[2]/div/div/div[2]/div[2]/div/div/div/div[1]/div')",
+          "ts": "page.locator('//*[@id=\"app\"]/div[1]/div[3]/div[2]/div/div/div[2]/div[2]/div/div/div/div[1]/div')"
+        },
+        "new": {
+          "python": "page.get_by_text(\"Earn 10 coins\", exact=True)",
+          "ts": "page.getByText('Earn 10 coins', { exact: true })"
+        }
+      },
+      {
+        "key": "s9",
+        "page": "abs",
+        "old": {
+          "python": "page.locator(\"xpath=/html/body/div[2]/div/div[1]/div[3]/div/div\")",
+          "ts": "page.locator('xpath=/html/body/div[2]/div/div[1]/div[3]/div/div')"
+        },
+        "new": {
+          "python": "page.get_by_role(\"button\", name=\"Save\", exact=True)",
+          "ts": "page.getByRole('button', { name: 'Save', exact: true })"
+        }
+      },
+      {
+        "key": "s11",
+        "page": "loose",
+        "old": {
+          "python": "page.locator(\"div > div > div > div > div > a\").first",
+          "ts": "page.locator('div > div > div > div > div > a').first()"
+        },
+        "new": {
+          "python": "page.get_by_role(\"link\", name=\"Read the guide\")",
+          "ts": "page.getByRole('link', { name: 'Read the guide' })"
+        }
+      },
+      {
+        "key": "g70a",
+        "page": "loose",
+        "old": {
+          "python": "page.locator(\"div > div > div.loader\")",
+          "ts": "page.locator('div > div > div.loader')"
+        },
+        "new": {
+          "python": "page.get_by_role(\"progressbar\")",
+          "ts": "page.getByRole('progressbar')"
+        }
+      },
+      {
+        "key": "n12",
+        "page": "positions",
+        "old": {
+          "python": "page.locator(\".v-input:nth-child(2) input\")",
+          "ts": "page.locator('.v-input:nth-child(2) input')"
+        },
+        "new": {
+          "python": "page.locator('input[name=\"firstName\"]')",
+          "ts": "page.locator('input[name=\"firstName\"]')"
+        }
+      },
+      {
+        "key": "n13",
+        "page": "positions",
+        "old": {
+          "python": "page.locator(\"div.form_group:nth-child(1) > input\")",
+          "ts": "page.locator('div.form_group:nth-child(1) > input')"
+        },
+        "new": {
+          "python": "page.locator(\"#user-name\")",
+          "ts": "page.locator('#user-name')"
+        }
+      },
+      {
+        "key": "n14",
+        "page": "positions",
+        "old": {
+          "python": "page.locator(\".dx-home-recent tbody tr td:nth-child(4)\").first",
+          "ts": "page.locator('.dx-home-recent tbody tr td:nth-child(4)').first()"
+        },
+        "new": {
+          "python": "page.locator('.dx-home-recent td[data-field=\"status\"]').first",
+          "ts": "page.locator('.dx-home-recent td[data-field=\"status\"]').first()"
+        }
+      },
+      {
+        "key": "n16",
+        "page": "positions",
+        "old": {
+          "python": "page.locator(\"div.coveo-list-layout.CoveoResult:nth-child(10)\")",
+          "ts": "page.locator('div.coveo-list-layout.CoveoResult:nth-child(10)')"
+        },
+        "new": {
+          "python": "page.locator('[data-result=\"doc-10\"]')",
+          "ts": "page.locator('[data-result=\"doc-10\"]')"
+        }
+      },
+      {
+        "key": "n17",
+        "page": "positions",
+        "old": {
+          "python": "page.locator(':nth-match([title=\"Change Language\"], 3)')",
+          "ts": "page.locator(':nth-match([title=\"Change Language\"], 3)')"
+        },
+        "new": {
+          "python": "page.locator('[data-pane=\"script\"] [title=\"Change Language\"]')",
+          "ts": "page.locator('[data-pane=\"script\"] [title=\"Change Language\"]')"
+        }
+      },
+      {
+        "key": "n22",
+        "page": "positions",
+        "old": {
+          "python": "page.locator('[data-cy=\"related-byId\"] [data-cy=\"result\"]:nth-child(1)')",
+          "ts": "page.locator('[data-cy=\"related-byId\"] [data-cy=\"result\"]:nth-child(1)')"
+        },
+        "new": {
+          "python": "page.locator('[data-cy=\"related-byId\"] [data-cy=\"result\"]').first",
+          "ts": "page.locator('[data-cy=\"related-byId\"] [data-cy=\"result\"]').first()"
+        }
+      },
+      {
+        "key": "n23",
+        "page": "positions",
+        "old": {
+          "python": "page.locator('[role=\"menuitem\"]:has-text(\"Projects\") ~ [role=\"menuitem\"]').nth(1)",
+          "ts": "page.locator('[role=\"menuitem\"]:has-text(\"Projects\") ~ [role=\"menuitem\"]').nth(1)"
+        },
+        "new": {
+          "python": "page.locator('[role=\"menuitem\"][data-project=\"beta\"]')",
+          "ts": "page.locator('[role=\"menuitem\"][data-project=\"beta\"]')"
+        }
+      },
+      {
+        "key": "x29",
+        "page": "xpath",
+        "old": {
+          "python": "page.get_by_text(\"Agent A\", exact=True).locator(\"xpath=ancestor::*[contains(@class, 'agent-row')]/following-sibling::*[1]\")",
+          "ts": "page.getByText('Agent A', { exact: true }).locator(\"xpath=ancestor::*[contains(@class, 'agent-row')]/following-sibling::*[1]\")"
+        },
+        "new": {
+          "python": "page.get_by_role(\"alert\")",
+          "ts": "page.getByRole('alert')"
+        }
+      },
+      {
+        "key": "x38",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator('//ul[@aria-hidden=\"false\"]/../preceding-sibling::span/input')",
+          "ts": "page.locator('//ul[@aria-hidden=\"false\"]/../preceding-sibling::span/input')"
+        },
+        "new": {
+          "python": "page.locator('input[name=\"role-filter\"]')",
+          "ts": "page.locator('input[name=\"role-filter\"]')"
+        }
+      },
+      {
+        "key": "t20",
+        "page": "text",
+        "old": {
+          "python": "page.locator(\"text=Add >> nth=0\")",
+          "ts": "page.locator('text=Add >> nth=0')"
+        },
+        "new": {
+          "python": "page.get_by_role(\"button\", name=\"Add\", exact=True)",
+          "ts": "page.getByRole('button', { name: 'Add', exact: true })"
+        }
+      },
+      {
+        "key": "w80",
+        "page": "shadow",
+        "old": {
+          "python": "page.locator('section[role=\"dialog\"] div div button:not(:disabled):nth-child(2)')",
+          "ts": "page.locator('section[role=\"dialog\"] div div button:not(:disabled):nth-child(2)')"
+        },
+        "new": {
+          "python": "page.locator('section[role=\"dialog\"] button[data-action=\"accept\"]')",
+          "ts": "page.locator('section[role=\"dialog\"] button[data-action=\"accept\"]')"
+        }
+      },
+      {
+        "key": "c87",
+        "page": "scoped",
+        "old": {
+          "python": "page.locator(\"div\", has_text=\"E2E Sync Store\").filter(has=page.locator(\"text=Local Disk\")).first",
+          "ts": "page.locator('div', { hasText: 'E2E Sync Store' }).filter({ has: page.locator('text=Local Disk') }).first()"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"store-card\").filter(has_text=\"E2E Sync Store\")",
+          "ts": "page.getByTestId('store-card').filter({ hasText: 'E2E Sync Store' })"
+        }
+      },
+      {
+        "key": "c91",
+        "page": "scoped",
+        "old": {
+          "python": "page.locator('button[role=switch]:right-of(:text(\"Versioning\"))')",
+          "ts": "page.locator('button[role=switch]:right-of(:text(\"Versioning\"))')"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"versioning-switch\")",
+          "ts": "page.getByTestId('versioning-switch')"
+        }
+      },
+      {
+        "key": "c93",
+        "page": "scoped",
+        "old": {
+          "python": "page.get_by_text(\"Ban user until\").locator(\"..\").locator(\".DatePicker-wrapper input\")",
+          "ts": "page.getByText('Ban user until').locator('..').locator('.DatePicker-wrapper input')"
+        },
+        "new": {
+          "python": "page.locator('input[name=\"banUntil\"]')",
+          "ts": "page.locator('input[name=\"banUntil\"]')"
+        }
+      },
+      {
+        "key": "m94",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\".MuiDataGrid-menu > div > .MuiList-root\").locator(\"xpath=./*\").nth(3)",
+          "ts": "page.locator('.MuiDataGrid-menu > div > .MuiList-root').locator('xpath=./*').nth(3)"
+        },
+        "new": {
+          "python": "page.get_by_role(\"menuitem\", name=\"Filter\")",
+          "ts": "page.getByRole('menuitem', { name: 'Filter' })"
+        }
+      },
+      {
+        "key": "a100",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\"[data-cy=run-detail-header] .ant-tabs-nav-list div:nth-child(2)\")",
+          "ts": "page.locator('[data-cy=run-detail-header] .ant-tabs-nav-list div:nth-child(2)')"
+        },
+        "new": {
+          "python": "page.locator('[data-cy=run-detail-header] [data-node-key=\"2\"]')",
+          "ts": "page.locator('[data-cy=run-detail-header] [data-node-key=\"2\"]')"
+        }
+      },
+      {
+        "key": "ag104",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\".ag-center-cols-container .ag-row[role='row'] .ag-cell[col-id='name']\").nth(1)",
+          "ts": "page.locator(\".ag-center-cols-container .ag-row[role='row'] .ag-cell[col-id='name']\").nth(1)"
+        },
+        "new": {
+          "python": "page.locator('.ag-row[row-id=\"41\"] .ag-cell[col-id=\"name\"]')",
+          "ts": "page.locator('.ag-row[row-id=\"41\"] .ag-cell[col-id=\"name\"]')"
+        }
+      },
+      {
+        "key": "s109",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\"#addAssetModal-assets + .select2 .select2-selection\")",
+          "ts": "page.locator('#addAssetModal-assets + .select2 .select2-selection')"
+        },
+        "new": {
+          "python": "page.locator('[aria-labelledby=\"select2-addAssetModal-assets-container\"]')",
+          "ts": "page.locator('[aria-labelledby=\"select2-addAssetModal-assets-container\"]')"
+        }
+      }
+    ],
+    "v11": [
+      {
+        "key": "s4",
+        "page": "structure",
+        "old": {
+          "python": "page.locator(\"#app-layout-page > section.pf-c-page__main-section.pf-m-no-padding.pf-m-light.appLayout_app-layout--content__1Gx8I > section > div > div > div > div:nth-child(2) > form > div:nth-child(4) > div.pf-c-form__group-control > div\")",
+          "ts": "page.locator('#app-layout-page > section.pf-c-page__main-section.pf-m-no-padding.pf-m-light.appLayout_app-layout--content__1Gx8I > section > div > div > div > div:nth-child(2) > form > div:nth-child(4) > div.pf-c-form__group-control > div')"
+        },
+        "new": {
+          "python": "page.locator('input[name=\"search\"]')",
+          "ts": "page.locator('input[name=\"search\"]')"
+        }
+      },
+      {
+        "key": "s5",
+        "page": "structure",
+        "old": {
+          "python": "page.locator('[id=\"accordion-item-\\\\:r2u\\\\:\"] > .-esm-form-engine__page-renderer__formSection___NMgiH > .-esm-form-engine__section-renderer__section___m5psJ > div > div > .cds--fieldset > .cds--form-item > .cds--radio-button-group > div:nth-child(2) > .cds--radio-button__label > .cds--radio-button__appearance')",
+          "ts": "page.locator('[id=\"accordion-item-\\\\:r2u\\\\:\"] > .-esm-form-engine__page-renderer__formSection___NMgiH > .-esm-form-engine__section-renderer__section___m5psJ > div > div > .cds--fieldset > .cds--form-item > .cds--radio-button-group > div:nth-child(2) > .cds--radio-button__label > .cds--radio-button__appearance')"
+        },
+        "new": {
+          "python": "page.get_by_text(\"Yes\", exact=True)",
+          "ts": "page.getByText('Yes', { exact: true })"
+        }
+      },
+      {
+        "key": "g70b",
+        "page": "loose",
+        "old": {
+          "python": "page.locator(\"button.py-1.px-3\")",
+          "ts": "page.locator('button.py-1.px-3')"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"save-draft\")",
+          "ts": "page.getByTestId('save-draft')"
+        }
+      },
+      {
+        "key": "x27",
+        "page": "xpath",
+        "old": {
+          "python": "page.get_by_text(\"My subscription\", exact=True).locator(\"xpath=ancestor::div[contains(@class, 'group/row')]\")",
+          "ts": "page.getByText('My subscription', { exact: true }).locator(\"xpath=ancestor::div[contains(@class, 'group/row')]\")"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"subscription-row\").filter(has_text=\"My subscription\")",
+          "ts": "page.getByTestId('subscription-row').filter({ hasText: 'My subscription' })"
+        }
+      },
+      {
+        "key": "x28",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator(\"ol\").locator(\"xpath=ancestor::div[contains(@class,'overflow-y-auto')][1]\")",
+          "ts": "page.locator('ol').locator(\"xpath=ancestor::div[contains(@class,'overflow-y-auto')][1]\")"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"log-scroll\")",
+          "ts": "page.getByTestId('log-scroll')"
+        }
+      },
+      {
+        "key": "x30",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator(\"xpath=//div[@role='tabpanel' and not(contains(@style, 'display: none'))]//*[starts-with(@id,'rstudio_source_text_editor')]//*[@class='ace_content' and not(ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ace_lineWidgetContainer ')])]\")",
+          "ts": "page.locator(\"xpath=//div[@role='tabpanel' and not(contains(@style, 'display: none'))]//*[starts-with(@id,'rstudio_source_text_editor')]//*[@class='ace_content' and not(ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ace_lineWidgetContainer ')])]\")"
+        },
+        "new": {
+          "python": "page.locator('[role=\"tabpanel\"]:visible').get_by_test_id(\"source-editor\")",
+          "ts": "page.locator('[role=\"tabpanel\"]:visible').getByTestId('source-editor')"
+        }
+      },
+      {
+        "key": "x31",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator(\"//tr[td[text()='Alice']]/td[count(//th[text()='Status']/preceding-sibling::th)+1]\")",
+          "ts": "page.locator(\"//tr[td[text()='Alice']]/td[count(//th[text()='Status']/preceding-sibling::th)+1]\")"
+        },
+        "new": {
+          "python": "page.locator('tr[data-user=\"alice\"] td[data-field=\"status\"]')",
+          "ts": "page.locator('tr[data-user=\"alice\"] td[data-field=\"status\"]')"
+        }
+      },
+      {
+        "key": "x33",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator(\"xpath=//*[normalize-space(text())='Cover Letter']/ancestor::*[.//button[contains(.,'Attach')]][1]\")",
+          "ts": "page.locator(\"xpath=//*[normalize-space(text())='Cover Letter']/ancestor::*[.//button[contains(.,'Attach')]][1]\")"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"upload-cover\")",
+          "ts": "page.getByTestId('upload-cover')"
+        }
+      },
+      {
+        "key": "x36",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator(\"//div[contains(@class, 'sc-') and contains(@class, '-0 ') and contains(text(), 'Events Without Choices')]\")",
+          "ts": "page.locator(\"//div[contains(@class, 'sc-') and contains(@class, '-0 ') and contains(text(), 'Events Without Choices')]\")"
+        },
+        "new": {
+          "python": "page.get_by_text(\"Events Without Choices\", exact=True)",
+          "ts": "page.getByText('Events Without Choices', { exact: true })"
+        }
+      },
+      {
+        "key": "x58",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator(\"//div[text()='Start date ']/following::div[contains(@class,'day picked')]/following-sibling::div[1]\")",
+          "ts": "page.locator(\"//div[text()='Start date ']/following::div[contains(@class,'day picked')]/following-sibling::div[1]\")"
+        },
+        "new": {
+          "python": "page.locator(\"div.day.picked + div.day\")",
+          "ts": "page.locator('div.day.picked + div.day')"
+        }
+      },
+      {
+        "key": "d40",
+        "page": "data",
+        "old": {
+          "python": "page.locator(\"data-test=category-space-permission >> .MuiSelect-select\")",
+          "ts": "page.locator('data-test=category-space-permission >> .MuiSelect-select')"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"category-space-permission\").locator(\".MuiSelect-select\")",
+          "ts": "page.getByTestId('category-space-permission').locator('.MuiSelect-select')"
+        }
+      },
+      {
+        "key": "d41",
+        "page": "data",
+        "old": {
+          "python": "page.locator('select[name*=\"role\" i], [data-testid*=\"role-select\"], [role=\"listbox\"]:near(:text(\"role\"))')",
+          "ts": "page.locator('select[name*=\"role\" i], [data-testid*=\"role-select\"], [role=\"listbox\"]:near(:text(\"role\"))')"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"role-picker\")",
+          "ts": "page.getByTestId('role-picker')"
+        }
+      },
+      {
+        "key": "d43",
+        "page": "data",
+        "old": {
+          "python": "page.locator('[data-qa=\"vacancy-serp__vacancy\"]').first",
+          "ts": "page.locator('[data-qa=\"vacancy-serp__vacancy\"]').first()"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"vacancy-serp__vacancy\").first",
+          "ts": "page.getByTestId('vacancy-serp__vacancy').first()"
+        }
+      },
+      {
+        "key": "a46",
+        "page": "aria",
+        "old": {
+          "python": "page.locator('button[aria-controls=\"box-busca-refinada\"]')",
+          "ts": "page.locator('button[aria-controls=\"box-busca-refinada\"]')"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"advanced-search-toggle\")",
+          "ts": "page.getByTestId('advanced-search-toggle')"
+        }
+      },
+      {
+        "key": "a47",
+        "page": "aria",
+        "old": {
+          "python": "page.locator('[aria-labelledby=\"select2-virtualmachinecataloguesyncform-data_center_id-container\"]')",
+          "ts": "page.locator('[aria-labelledby=\"select2-virtualmachinecataloguesyncform-data_center_id-container\"]')"
+        },
+        "new": {
+          "python": "page.locator('span.select2-selection[aria-labelledby*=\"data_center_id\"]')",
+          "ts": "page.locator('span.select2-selection[aria-labelledby*=\"data_center_id\"]')"
+        }
+      },
+      {
+        "key": "a48",
+        "page": "aria",
+        "old": {
+          "python": "page.locator('[aria-label=\"CSETv1:Physical Objects:no\"]')",
+          "ts": "page.locator('[aria-label=\"CSETv1:Physical Objects:no\"]')"
+        },
+        "new": {
+          "python": "page.locator('input[name=\"physical_objects\"][value=\"no\"]')",
+          "ts": "page.locator('input[name=\"physical_objects\"][value=\"no\"]')"
+        }
+      },
+      {
+        "key": "a49",
+        "page": "aria",
+        "old": {
+          "python": "page.locator('//span[@aria-label=\" Pending \"]')",
+          "ts": "page.locator('//span[@aria-label=\" Pending \"]')"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"msg-status\")",
+          "ts": "page.getByTestId('msg-status')"
+        }
+      },
+      {
+        "key": "a50",
+        "page": "aria",
+        "old": {
+          "python": "page.locator('[popover=\"auto\"][role=\"group\"][aria-label=\"Row actions\"]').get_by_role(\"button\", name=\"Edit\")",
+          "ts": "page.locator('[popover=\"auto\"][role=\"group\"][aria-label=\"Row actions\"]').getByRole('button', { name: 'Edit' })"
+        },
+        "new": {
+          "python": "page.locator(\"#row-pop\").get_by_role(\"button\", name=\"Edit\")",
+          "ts": "page.locator('#row-pop').getByRole('button', { name: 'Edit' })"
+        }
+      },
+      {
+        "key": "t54",
+        "page": "text",
+        "old": {
+          "python": "page.locator(\"#tape tr:has(td.c-tool:text-is('Edit')):has-text('billing.py')\")",
+          "ts": "page.locator(\"#tape tr:has(td.c-tool:text-is('Edit')):has-text('billing.py')\")"
+        },
+        "new": {
+          "python": "page.locator('#tape tr[data-tool=\"edit\"]:has-text(\"billing.py\")')",
+          "ts": "page.locator('#tape tr[data-tool=\"edit\"]:has-text(\"billing.py\")')"
+        }
+      },
+      {
+        "key": "t55",
+        "page": "text",
+        "old": {
+          "python": "page.locator(\"[role='tab']:has(i.google-symbols:text-is('image'))\")",
+          "ts": "page.locator(\"[role='tab']:has(i.google-symbols:text-is('image'))\")"
+        },
+        "new": {
+          "python": "page.locator('[role=\"tab\"][aria-controls=\"panel-images\"]')",
+          "ts": "page.locator('[role=\"tab\"][aria-controls=\"panel-images\"]')"
+        }
+      },
+      {
+        "key": "t59",
+        "page": "text",
+        "old": {
+          "python": "page.locator(\"xpath=//label[contains(text(), \\\"What's the patient's birth date?\\\")]\")",
+          "ts": "page.locator('xpath=//label[contains(text(), \"What\\'s the patient\\'s birth date?\")]')"
+        },
+        "new": {
+          "python": "page.locator('label[for=\"birthdate\"]')",
+          "ts": "page.locator('label[for=\"birthdate\"]')"
+        }
+      },
+      {
+        "key": "g60",
+        "page": "generated",
+        "old": {
+          "python": "page.locator(\".css-7g0azd\").nth(0)",
+          "ts": "page.locator('.css-7g0azd').nth(0)"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"asset-item\").nth(0)",
+          "ts": "page.getByTestId('asset-item').nth(0)"
+        }
+      },
+      {
+        "key": "g61",
+        "page": "generated",
+        "old": {
+          "python": "page.locator(\".css-1xc3v61-indicatorContainer\")",
+          "ts": "page.locator('.css-1xc3v61-indicatorContainer')"
+        },
+        "new": {
+          "python": "page.locator('[data-testid=\"region-select\"] [class$=\"-indicatorContainer\"]')",
+          "ts": "page.locator('[data-testid=\"region-select\"] [class$=\"-indicatorContainer\"]')"
+        }
+      },
+      {
+        "key": "g63",
+        "page": "generated",
+        "old": {
+          "python": "page.locator(\"//div[contains(@id,'react-select-2-placeholder')]\")",
+          "ts": "page.locator(\"//div[contains(@id,'react-select-2-placeholder')]\")"
+        },
+        "new": {
+          "python": "page.locator('[data-testid=\"region-select\"] [id$=\"-placeholder\"]')",
+          "ts": "page.locator('[data-testid=\"region-select\"] [id$=\"-placeholder\"]')"
+        }
+      },
+      {
+        "key": "g62",
+        "page": "generated",
+        "old": {
+          "python": "page.locator(\"#react-select-3-option-6\")",
+          "ts": "page.locator('#react-select-3-option-6')"
+        },
+        "new": {
+          "python": "page.locator('[data-testid=\"city-select\"] [id$=\"-option-6\"]')",
+          "ts": "page.locator('[data-testid=\"city-select\"] [id$=\"-option-6\"]')"
+        }
+      },
+      {
+        "key": "g65",
+        "page": "generated",
+        "old": {
+          "python": "page.locator(\"#\\\\:Rajsq\\\\:-form-item\")",
+          "ts": "page.locator('#\\\\:Rajsq\\\\:-form-item')"
+        },
+        "new": {
+          "python": "page.locator('input[name=\"fullName\"]')",
+          "ts": "page.locator('input[name=\"fullName\"]')"
+        }
+      },
+      {
+        "key": "g67",
+        "page": "generated",
+        "old": {
+          "python": "page.locator(\".MuiTreeView-root ul > div > div > li:nth-child(3) button:nth-child(2)\")",
+          "ts": "page.locator('.MuiTreeView-root ul > div > div > li:nth-child(3) button:nth-child(2)')"
+        },
+        "new": {
+          "python": "page.get_by_role(\"button\", name=\"Delete file\")",
+          "ts": "page.getByRole('button', { name: 'Delete file' })"
+        }
+      },
+      {
+        "key": "f73",
+        "page": "frames",
+        "old": {
+          "python": "page.frame_locator(\"iframe[name^='ApxSecureIframe']\").get_by_role(\"textbox\", name=\"Card number\")",
+          "ts": "page.frameLocator(\"iframe[name^='ApxSecureIframe']\").getByRole('textbox', { name: 'Card number' })"
+        },
+        "new": {
+          "python": "page.frame_locator('iframe[title=\"Secure payment\"]').get_by_role(\"textbox\", name=\"Card number\")",
+          "ts": "page.frameLocator('iframe[title=\"Secure payment\"]').getByRole('textbox', { name: 'Card number' })"
+        }
+      },
+      {
+        "key": "w79",
+        "page": "shadow",
+        "old": {
+          "python": "page.locator(\"lightning-input.pipelineInspectionToggle lightning-primitive-input-toggle\")",
+          "ts": "page.locator('lightning-input.pipelineInspectionToggle lightning-primitive-input-toggle')"
+        },
+        "new": {
+          "python": "page.locator('lightning-input.pipelineInspectionToggle input[type=\"checkbox\"]')",
+          "ts": "page.locator('lightning-input.pipelineInspectionToggle input[type=\"checkbox\"]')"
+        }
+      },
+      {
+        "key": "c84",
+        "page": "scoped",
+        "old": {
+          "python": "page.locator(\".ant-select-dropdown:not(.ant-select-dropdown-hidden)\").last.locator(\".ant-select-item-option\").get_by_text(\"Marketing\", exact=True)",
+          "ts": "page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last().locator('.ant-select-item-option').getByText('Marketing', { exact: true })"
+        },
+        "new": {
+          "python": "page.get_by_role(\"option\", name=\"Marketing\", exact=True)",
+          "ts": "page.getByRole('option', { name: 'Marketing', exact: true })"
+        }
+      },
+      {
+        "key": "c85",
+        "page": "scoped",
+        "old": {
+          "python": "page.locator(\"mat-menu\").filter(has=page.locator('button:has-text(\"Add New Tag\")'))",
+          "ts": "page.locator('mat-menu').filter({ has: page.locator('button:has-text(\"Add New Tag\")') })"
+        },
+        "new": {
+          "python": "page.locator('mat-menu[data-menu=\"tag\"]')",
+          "ts": "page.locator('mat-menu[data-menu=\"tag\"]')"
+        }
+      },
+      {
+        "key": "c86",
+        "page": "scoped",
+        "old": {
+          "python": "page.locator(\".agent-option\").filter(has=page.locator(\".agent-option-name\", has_text=re.compile(r\"^Alpha$\")))",
+          "ts": "page.locator('.agent-option').filter({ has: page.locator('.agent-option-name', { hasText: /^Alpha$/ }) })"
+        },
+        "new": {
+          "python": "page.locator('.agent-option[data-agent=\"alpha\"]')",
+          "ts": "page.locator('.agent-option[data-agent=\"alpha\"]')"
+        }
+      },
+      {
+        "key": "c88",
+        "page": "scoped",
+        "old": {
+          "python": "page.get_by_text(\"Row A\", exact=True).locator(\"xpath=ancestor::*[@data-testid='on-call-direct-page']\").get_by_test_id(\"on-call-direct-page-label\")",
+          "ts": "page.getByText('Row A', { exact: true }).locator(\"xpath=ancestor::*[@data-testid='on-call-direct-page']\").getByTestId('on-call-direct-page-label')"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"on-call-direct-page-label\")",
+          "ts": "page.getByTestId('on-call-direct-page-label')"
+        }
+      },
+      {
+        "key": "c89",
+        "page": "scoped",
+        "old": {
+          "python": "page.locator(\".ant-table-row\").first.locator('button:has(svg[data-icon=\"pen-to-square\"])')",
+          "ts": "page.locator('.ant-table-row').first().locator('button:has(svg[data-icon=\"pen-to-square\"])')"
+        },
+        "new": {
+          "python": "page.locator(\".ant-table-row\").first.get_by_role(\"button\", name=\"Edit template\")",
+          "ts": "page.locator('.ant-table-row').first().getByRole('button', { name: 'Edit template' })"
+        }
+      },
+      {
+        "key": "m97",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\"#menu-cardRegion ul.MuiMenu-list li\").nth(2)",
+          "ts": "page.locator('#menu-cardRegion ul.MuiMenu-list li').nth(2)"
+        },
+        "new": {
+          "python": "page.locator('li[data-value=\"EU\"]')",
+          "ts": "page.locator('li[data-value=\"EU\"]')"
+        }
+      },
+      {
+        "key": "rs101b",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\"#country .react-select__option\").nth(0)",
+          "ts": "page.locator('#country .react-select__option').nth(0)"
+        },
+        "new": {
+          "python": "page.locator(\"#country\").get_by_role(\"option\").nth(0)",
+          "ts": "page.locator('#country').getByRole('option').nth(0)"
+        }
+      },
+      {
+        "key": "ag105",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\".ag-row\", has_text=\"Needs you\").locator(\"[col-id=buyer]\")",
+          "ts": "page.locator('.ag-row', { hasText: 'Needs you' }).locator('[col-id=buyer]')"
+        },
+        "new": {
+          "python": "page.locator('.ag-row[row-id=\"44\"] [col-id=\"buyer\"]')",
+          "ts": "page.locator('.ag-row[row-id=\"44\"] [col-id=\"buyer\"]')"
+        }
+      },
+      {
+        "key": "s111",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\".react-datepicker__day--001:not(.react-datepicker__day--outside-month)\")",
+          "ts": "page.locator('.react-datepicker__day--001:not(.react-datepicker__day--outside-month)')"
+        },
+        "new": {
+          "python": "page.locator(\".react-datepicker__day--001:not(.react-datepicker__day--outside)\")",
+          "ts": "page.locator('.react-datepicker__day--001:not(.react-datepicker__day--outside)')"
+        }
+      },
+      {
+        "key": "s113",
+        "page": "components",
+        "old": {
+          "python": "page.locator(\"[data-headlessui-portal]\").get_by_role(\"option\", name=\"Beta\", exact=True)",
+          "ts": "page.locator('[data-headlessui-portal]').getByRole('option', { name: 'Beta', exact: true })"
+        },
+        "new": {
+          "python": "page.get_by_role(\"option\", name=\"Beta\", exact=True)",
+          "ts": "page.getByRole('option', { name: 'Beta', exact: true })"
+        }
+      }
+    ],
+    "v12": [
+      {
+        "key": "s3",
+        "page": "structure",
+        "old": {
+          "python": "page.locator('[data-qa=\"pnx-occhab-form\"] > div:nth-child(1) > pnx-map > div > div.leaflet-container.leaflet-touch.leaflet-fade-anim.leaflet-grab.leaflet-touch-drag.leaflet-touch-zoom > div.leaflet-control-container > div.leaflet-top.leaflet-left > div.leaflet-draw.leaflet-control > div:nth-child(1) > div > a')",
+          "ts": "page.locator('[data-qa=\"pnx-occhab-form\"] > div:nth-child(1) > pnx-map > div > div.leaflet-container.leaflet-touch.leaflet-fade-anim.leaflet-grab.leaflet-touch-drag.leaflet-touch-zoom > div.leaflet-control-container > div.leaflet-top.leaflet-left > div.leaflet-draw.leaflet-control > div:nth-child(1) > div > a')"
+        },
+        "new": {
+          "python": "page.locator('[data-qa=\"pnx-occhab-form\"] a.leaflet-draw-draw-polygon')",
+          "ts": "page.locator('[data-qa=\"pnx-occhab-form\"] a.leaflet-draw-draw-polygon')"
+        }
+      },
+      {
+        "key": "n13",
+        "page": "positions",
+        "old": {
+          "python": "page.locator(\"div.form_group:nth-child(1) > input\")",
+          "ts": "page.locator('div.form_group:nth-child(1) > input')"
+        },
+        "new": {
+          "python": "page.locator(\"#user-name\")",
+          "ts": "page.locator('#user-name')"
+        }
+      },
+      {
+        "key": "n21",
+        "page": "positions",
+        "old": {
+          "python": "page.locator('div [data-testid=\"input-widget-name\"] >> nth=-1')",
+          "ts": "page.locator('div [data-testid=\"input-widget-name\"] >> nth=-1')"
+        },
+        "new": {
+          "python": "page.locator('[data-widget=\"w3\"] [data-testid=\"input-widget-name\"]')",
+          "ts": "page.locator('[data-widget=\"w3\"] [data-testid=\"input-widget-name\"]')"
+        }
+      },
+      {
+        "key": "x34",
+        "page": "xpath",
+        "old": {
+          "python": "page.locator(\"xpath=//div[contains(@class, 'btn-peel')][not(ancestor::div[contains(@class, 'promotion-discount-card--expired')])]\")",
+          "ts": "page.locator(\"xpath=//div[contains(@class, 'btn-peel')][not(ancestor::div[contains(@class, 'promotion-discount-card--expired')])]\")"
+        },
+        "new": {
+          "python": "page.locator('[data-offer=\"offer-2\"] .btn-peel')",
+          "ts": "page.locator('[data-offer=\"offer-2\"] .btn-peel')"
+        }
+      },
+      {
+        "key": "d42",
+        "page": "data",
+        "old": {
+          "python": "page.locator('form:nth-of-type(2) >> [data-qa=\"add-to-shopping-cart\"]')",
+          "ts": "page.locator('form:nth-of-type(2) >> [data-qa=\"add-to-shopping-cart\"]')"
+        },
+        "new": {
+          "python": "page.frame_locator('iframe[title=\"Cart widget\"]').locator('[data-qa=\"add-to-shopping-cart\"]')",
+          "ts": "page.frameLocator('iframe[title=\"Cart widget\"]').locator('[data-qa=\"add-to-shopping-cart\"]')"
+        }
+      },
+      {
+        "key": "d45",
+        "page": "data",
+        "old": {
+          "python": "page.locator('[data-id=\"0\"] > [data-field=\"fqdn\"] ')",
+          "ts": "page.locator('[data-id=\"0\"] > [data-field=\"fqdn\"] ')"
+        },
+        "new": {
+          "python": "page.locator('[role=\"row\"] [data-field=\"fqdn\"]').first",
+          "ts": "page.locator('[role=\"row\"] [data-field=\"fqdn\"]').first()"
+        }
+      },
+      {
+        "key": "a51",
+        "page": "aria",
+        "old": {
+          "python": "page.locator('button[aria-label*=\"settings\" i]').first",
+          "ts": "page.locator('button[aria-label*=\"settings\" i]').first()"
+        },
+        "new": null
+      },
+      {
+        "key": "t53",
+        "page": "text",
+        "old": {
+          "python": "page.locator('div[class*=\"_switch_\"]:has(div[class*=\"_tit1_\"]:text-is(\"合集\"))')",
+          "ts": "page.locator('div[class*=\"_switch_\"]:has(div[class*=\"_tit1_\"]:text-is(\"合集\"))')"
+        },
+        "new": {
+          "python": "page.locator('div[class*=\"_switch_\"][data-name=\"collection\"]')",
+          "ts": "page.locator('div[class*=\"_switch_\"][data-name=\"collection\"]')"
+        }
+      },
+      {
+        "key": "t57",
+        "page": "text",
+        "old": {
+          "python": "page.locator(\"text=/^\\\\d+%$/\").first",
+          "ts": "page.locator('text=/^\\\\d+%$/').first()"
+        },
+        "new": {
+          "python": "page.get_by_test_id(\"zoom-level\")",
+          "ts": "page.getByTestId('zoom-level')"
+        }
+      },
+      {
+        "key": "g66",
+        "page": "generated",
+        "old": {
+          "python": "page.locator(\"#\\\\:r1\\\\:-helper-text\")",
+          "ts": "page.locator('#\\\\:r1\\\\:-helper-text')"
+        },
+        "new": {
+          "python": "page.locator('[id$=\"-helper-text\"]')",
+          "ts": "page.locator('[id$=\"-helper-text\"]')"
+        }
+      },
+      {
+        "key": "f71a",
+        "page": "frames",
+        "old": {
+          "python": "page.frame_locator('iframe[name^=\"__privateStripeFrame\"]').first.locator('[name=\"number\"]')",
+          "ts": "page.frameLocator('iframe[name^=\"__privateStripeFrame\"]').first().locator('[name=\"number\"]')"
+        },
+        "new": {
+          "python": "page.frame_locator('iframe[name^=\"__privateStripeFrame\"]').first.locator('[name=\"cardnumber\"]')",
+          "ts": "page.frameLocator('iframe[name^=\"__privateStripeFrame\"]').first().locator('[name=\"cardnumber\"]')"
+        }
+      },
+      {
+        "key": "f71b",
+        "page": "frames",
+        "old": {
+          "python": "page.frame_locator('iframe[name^=\"__privateStripeFrame\"]').first.locator('[name=\"expiry\"]')",
+          "ts": "page.frameLocator('iframe[name^=\"__privateStripeFrame\"]').first().locator('[name=\"expiry\"]')"
+        },
+        "new": {
+          "python": "page.frame_locator('iframe[name^=\"__privateStripeFrame\"]').first.locator('[name=\"exp-date\"]')",
+          "ts": "page.frameLocator('iframe[name^=\"__privateStripeFrame\"]').first().locator('[name=\"exp-date\"]')"
+        }
+      },
+      {
+        "key": "f75",
+        "page": "frames",
+        "old": {
+          "python": "page.frame_locator('iframe[name=\"editor-canvas\"]').locator(\".wp-block-post-title\")",
+          "ts": "page.frameLocator('iframe[name=\"editor-canvas\"]').locator('.wp-block-post-title')"
+        },
+        "new": {
+          "python": "page.locator(\".wp-block-post-title\")",
+          "ts": "page.locator('.wp-block-post-title')"
+        }
+      },
+      {
+        "key": "f74",
+        "page": "frames-nested",
+        "old": {
+          "python": "page.frame_locator(\"iframe\").first.frame_locator('iframe[name=\"layui-layer-iframe1\"]').locator(\"text=确认\")",
+          "ts": "page.frameLocator('iframe').first().frameLocator('iframe[name=\"layui-layer-iframe1\"]').locator('text=确认')"
+        },
+        "new": {
+          "python": "page.frame_locator(\"iframe\").first.frame_locator('iframe[title=\"Confirm dialog\"]').locator(\"text=确认\")",
+          "ts": "page.frameLocator('iframe').first().frameLocator('iframe[title=\"Confirm dialog\"]').locator('text=确认')"
+        }
+      },
+      {
+        "key": "c90",
+        "page": "scoped",
+        "old": {
+          "python": "page.locator(\"select\").filter(has=page.locator(\"option[value='pending']\")).first",
+          "ts": "page.locator('select').filter({ has: page.locator(\"option[value='pending']\") }).first()"
+        },
+        "new": {
+          "python": "page.locator('select[name=\"status\"]')",
+          "ts": "page.locator('select[name=\"status\"]')"
+        }
+      },
+      {
+        "key": "ag103",
+        "page": "components",
+        "old": {
+          "python": "page.locator('.ag-row[row-index=\"3\"] .ag-cell[col-id=\"name\"]')",
+          "ts": "page.locator('.ag-row[row-index=\"3\"] .ag-cell[col-id=\"name\"]')"
+        },
+        "new": {
+          "python": "page.locator('.ag-row[row-id=\"43\"] .ag-cell[col-id=\"name\"]')",
+          "ts": "page.locator('.ag-row[row-id=\"43\"] .ag-cell[col-id=\"name\"]')"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "v7": [
+    {
+      "old": "page.locator(\"#app > div > div:nth-child(2) > div.grid > div:nth-child(3) > span.cell\")",
+      "new": "page.locator(\"[data-activity='1041']\")"
+    },
+    {
+      "old": "page.get_by_test_id(\"orders-table\").locator(\"tbody tr\").nth(3).locator(\"td\").nth(2).locator(\"button\")",
+      "new": "page.locator(\"[data-qa='order-row-1043'] [data-qa='status']\")"
+    },
+    {
+      "old": "page.locator(\"//table//tr[3]/td[2]\")",
+      "new": "page.locator(\"[data-qa='order-row-1042'] [data-col=customer]\")"
+    },
+    {
+      "old": "page.locator(\"div.toolbar div.filters > button:nth-of-type(2)\")",
+      "new": "page.locator(\"[data-filter=paid]\")"
+    },
+    {
+      "old": "page.locator(\"#panel-notes > textarea\")",
+      "new": "page.locator(\"textarea[name=note]\")"
+    },
+    {
+      "old": "page.locator(\"button.sc-fzXfKy.jQdBvX\")",
+      "new": "page.get_by_role(\"button\", name=\"Cancel order\")"
+    },
+    {
+      "old": "page.locator(\"order-flag button.toggle\")",
+      "new": "page.locator(\"order-flag [role=switch]\")"
+    }
+  ],
+  "v8": [
+    {
+      "old": "page.locator(\"[data-qa='order-row-1042'] [data-qa='status']\")",
+      "new": "page.get_by_test_id(\"order-row-1042\").get_by_test_id(\"status\")"
+    },
+    {
+      "old": "page.locator(\"[data-cy=export-csv]\")",
+      "new": "page.get_by_test_id(\"export-csv\")"
+    },
+    {
+      "old": "page.get_by_label(\"Actions for order 1043\")",
+      "new": "page.get_by_test_id(\"order-row-1043\").locator(\"[data-cy=row-menu]\")"
+    },
+    {
+      "old": "page.locator(\"[aria-label='Close dialog']\")",
+      "new": "page.locator(\"[data-qa=dialog-close]\")"
+    },
+    {
+      "old": "page.locator(\"#tab-history\")",
+      "new": "page.get_by_test_id(\"tab-history\")"
+    },
+    {
+      "old": "page.locator(\"[role=tabpanel][aria-labelledby=tab-history] li\").first",
+      "new": "page.locator(\"[role=tabpanel][data-panel=history] li\").first"
+    },
+    {
+      "old": "page.locator(\"#panel-notes > textarea\")",
+      "new": "page.locator(\"textarea[name=note]\")"
+    },
+    {
+      "old": "page.frame_locator(\"#payment-frame\")",
+      "new": "page.frame_locator(\"iframe[name=payment]\")"
+    }
+  ],
+  "v9": [
+    {
+      "old": "page.locator(\"div.toolbar div.filters > button:nth-of-type(2)\")",
+      "new": "page.locator(\"[data-filter=paid]\")"
+    },
+    {
+      "old": "page.locator(\"button.sc-fzXfKy.jQdBvX\")",
+      "new": "page.get_by_role(\"button\", name=\"Cancel order\")"
+    },
+    {
+      "old": "page.locator(\"[data-qa='order-row-1042'] [data-qa='status']\")",
+      "new": "page.locator(\"[data-qa='order-row-1042'] [data-qa='order-status']\")"
+    },
+    {
+      "old": "page.locator(\"#tab-history\")",
+      "new": "page.get_by_test_id(\"tab-history\")"
+    },
+    {
+      "old": "page.locator(\"[role=tabpanel][aria-labelledby=tab-history] li\").first",
+      "new": "page.locator(\"[role=tabpanel][data-panel=history] li\").first"
+    },
+    {
+      "old": "page.locator(\"[aria-label='Close dialog']\")",
+      "new": "page.locator(\"[data-qa=dialog-close]\")"
+    },
+    {
+      "old": "page.get_by_role(\"row\").filter(has_text=\"Echo GmbH\").get_by_role(\"checkbox\")",
+      "new": "page.locator(\"[data-qa='order-row-1044']\").get_by_role(\"checkbox\")"
+    },
+    {
+      "old": "page.locator(\"[data-cy=export-csv]\")",
+      "new": null
+    },
+    {
+      "old": "page.locator(\"input[name=zip]\")",
+      "new": "page.frame_locator(\"#payment-frame\").locator(\"input[name=zip]\")"
+    },
+    {
+      "old": "page.locator(\"#panel-notes > textarea\")",
+      "new": "page.locator(\"textarea[name=note]\")"
+    }
+  ]
+}

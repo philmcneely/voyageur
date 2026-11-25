@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inscription - Vérification</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <p class="step-label">Étape 4 sur 4</p>
+  <h1>Vérifier et envoyer</h1>
+  <dl class="summary">
+    <div><dt>Nom et prénom</dt><dd data-testid="review-fullname" data-review="fullname"></dd></div>
+    <div><dt>Adresse e-mail</dt><dd data-testid="review-email" data-review="email"></dd></div>
+    <div><dt>Identifiant</dt><dd data-testid="review-username" data-review="username"></dd></div>
+    <div><dt>Téléphone</dt><dd data-testid="review-phone" data-review="phone"></dd></div>
+    <div><dt>Date de livraison</dt><dd data-testid="review-delivery" data-review="delivery"></dd></div>
+    <div><dt>Ville</dt><dd data-testid="review-city" data-review="city"></dd></div>
+    <div><dt>Formule</dt><dd data-testid="review-plan" data-review="plan"></dd></div>
+    <div><dt>Places</dt><dd data-testid="review-seats" data-review="seats"></dd></div>
+  </dl>
+  <form id="step-form" data-next="done.html" novalidate>
+    <div class="field" style="margin-top:20px">
+      <span class="label">Conditions générales</span>
+      <div class="dp-row">
+        <button type="button" id="open-terms">Lire les conditions</button>
+        <span class="hint" data-terms-status data-testid="terms-status">Conditions pas encore acceptées</span>
+      </div>
+      <input type="hidden" data-key="terms" data-required value="">
+    </div>
+    <div class="actions"><button type="submit" class="primary" id="submit">Valider la commande</button></div>
+
+    <div class="overlay" id="terms-overlay" hidden>
+      <div role="dialog" aria-modal="true" aria-labelledby="terms-title">
+        <h2 id="terms-title">Conditions d'utilisation</h2>
+        <div class="terms-body">
+          <p>En validant cette commande, vous confirmez que les informations ci-dessus sont exactes et que vous
+          êtes autorisé à utiliser ce moyen de paiement. Ceci est un jeu de test : rien n'est envoyé.</p>
+          <p>Vous pouvez résilier à tout moment. La période de facturation entamée n'est pas remboursée.</p>
+        </div>
+        <label class="choice"><input type="checkbox" id="agree"> J'accepte les conditions</label>
+        <div class="actions"><button type="button" id="close-terms">Fermer</button></div>
+      </div>
+    </div>
+  </form>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

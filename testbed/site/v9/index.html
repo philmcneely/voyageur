@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orders</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" data-state="idle">
+  <div class="shell">
+    <div class="main-col">
+      <div class="page-head">
+        <div class="page-head-inner">
+          <h1>Orders</h1>
+          <div class="page-head-meta"><span class="muted">Region EU-West</span></div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="filters" role="group" aria-label="Status filter">
+          <div class="chip-group">
+          <button type="button" class="chip" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" class="chip" data-filter="paid" aria-pressed="false">Paid</button>
+          <button type="button" class="chip" data-filter="shipped" aria-pressed="false">Shipped</button>
+          <button type="button" class="chip" data-filter="refunded" aria-pressed="false">Refunded</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <input type="search" name="q" placeholder="Search orders" aria-label="Search orders">
+          <button type="button" class="btn" data-cy="export-pdf" data-format="pdf">Export PDF</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="table-wrap">
+          <div class="table-scroll">
+            <table class="orders" data-testid="orders-table" aria-label="Orders">
+              <thead>
+                <tr>
+                  <th scope="col">Order</th>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Total</th>
+                  <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-qa="order-row-1040">
+                  <td data-col="id"><label class="pick"><input type="checkbox" name="sel" value="1040"><span class="num">#1040</span></label></td>
+                  <td data-col="customer">Acme Corp</td>
+                  <td data-col="status"><button type="button" class="badge" data-qa="order-status" data-status="pending">pending</button></td>
+                  <td data-col="total" data-value="12000">$120.00</td>
+                  <td data-col="actions"><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1040" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1041">
+                  <td data-col="id"><label class="pick"><input type="checkbox" name="sel" value="1041"><span class="num">#1041</span></label></td>
+                  <td data-col="customer">Birch Ltd</td>
+                  <td data-col="status"><button type="button" class="badge" data-qa="order-status" data-status="shipped">shipped</button></td>
+                  <td data-col="total" data-value="8450">$84.50</td>
+                  <td data-col="actions"><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1041" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1042">
+                  <td data-col="id"><label class="pick"><input type="checkbox" name="sel" value="1042"><span class="num">#1042</span></label></td>
+                  <td data-col="customer">Cobalt Inc</td>
+                  <td data-col="status"><button type="button" class="badge" data-qa="order-status" data-status="paid">paid</button></td>
+                  <td data-col="total" data-value="23999">$239.99</td>
+                  <td data-col="actions"><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1042" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1043">
+                  <td data-col="id"><label class="pick"><input type="checkbox" name="sel" value="1043"><span class="num">#1043</span></label></td>
+                  <td data-col="customer">Delta LLC</td>
+                  <td data-col="status"><button type="button" class="badge" data-qa="order-status" data-status="pending">pending</button></td>
+                  <td data-col="total" data-value="4300">$43.00</td>
+                  <td data-col="actions"><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1043" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1044">
+                  <td data-col="id"><label class="pick"><input type="checkbox" name="sel" value="1044"><span class="num">#1044</span></label></td>
+                  <td data-col="customer">Echo Group GmbH</td>
+                  <td data-col="status"><button type="button" class="badge" data-qa="order-status" data-status="paid">paid</button></td>
+                  <td data-col="total" data-value="15750">$157.50</td>
+                  <td data-col="actions"><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1044" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1045">
+                  <td data-col="id"><label class="pick"><input type="checkbox" name="sel" value="1045"><span class="num">#1045</span></label></td>
+                  <td data-col="customer">Foxtrot SA</td>
+                  <td data-col="status"><button type="button" class="badge" data-qa="order-status" data-status="refunded">refunded</button></td>
+                  <td data-col="total" data-value="990">$9.90</td>
+                  <td data-col="actions"><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1045" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <section class="pay" aria-labelledby="pay-title">
+          <div class="pay-inner">
+            <h2 id="pay-title">Collect payment</h2>
+            <iframe id="payment-frame" name="payment" title="Secure card entry" src="payment.html"></iframe>
+          </div>
+        </section>
+      </div>
+      <div class="panel">
+        <p class="live" data-testid="summary"></p>
+      </div>
+    </div>
+    <div class="side-col">
+      <div class="side-head">
+        <h2>Order <span data-testid="current-order">1040</span></h2>
+        <button type="button" class="sc-dkzDqf kLmNoP" data-act="cancel-order">Cancel order</button>
+      </div>
+      <div class="grid" data-testid="activity-feed" aria-label="Recent activity">
+        <div class="grid-row" data-activity="1045"><span class="cell">#1045</span><span class="note">refunded 2m ago</span></div>
+        <div class="grid-row" data-activity="1043"><span class="cell">#1043</span><span class="note">created 9m ago</span></div>
+        <div class="grid-row" data-activity="1041"><span class="cell">#1041</span><span class="note">shipped 1h ago</span></div>
+        <div class="grid-row" data-activity="1044"><span class="cell">#1044</span><span class="note">paid 3h ago</span></div>
+      </div>
+      <div class="tabs">
+        <div class="tabs-bar">
+          <div role="tablist" aria-label="Order sections">
+            <button type="button" role="tab" id="tab-details" data-testid="tab-details" data-tab="details" aria-selected="true" aria-controls="panel-details">Details</button>
+            <button type="button" role="tab" id=":r3:" data-testid="tab-history" data-tab="history" aria-selected="false" aria-controls="panel-history">History</button>
+            <button type="button" role="tab" id="tab-notes" data-testid="tab-notes" data-tab="notes" aria-selected="false" aria-controls="panel-notes">Notes</button>
+          </div>
+        </div>
+        <div class="tabs-body">
+          <div role="tabpanel" id="panel-details" aria-labelledby="tab-details" data-panel="details">
+            <p class="muted">Flag this order if the payment looks wrong.</p>
+            <order-flag></order-flag>
+          </div>
+          <div role="tabpanel" id="panel-history" aria-labelledby=":r3:" data-panel="history" hidden>
+            <ul class="events">
+              <li data-event="e301"><span class="ev-title">Payment captured</span></li>
+              <li data-event="e302"><span class="ev-title">Label printed</span></li>
+              <li data-event="e303"><span class="ev-title">Handed to carrier</span></li>
+            </ul>
+          </div>
+          <div role="tabpanel" id="panel-notes" aria-labelledby="tab-notes" data-panel="notes" hidden>
+            <note-editor></note-editor>
+            <div class="actions"><button type="button" class="btn" data-act="save-note">Save note</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="portal-root"></div>
+<div class="backdrop" data-backdrop hidden></div>
+<div role="dialog" aria-modal="true" aria-labelledby="dlg-title" data-testid="cancel-dialog" class="dialog" hidden>
+  <div class="dialog-head">
+    <h2 id="dlg-title">Cancel this order?</h2>
+    <button type="button" class="icon-btn" aria-label="Close" data-qa="dialog-close" data-act="close-dialog">&#215;</button>
+  </div>
+  <div class="dialog-body">
+    <div class="field">
+      <label for="reason">Reason</label>
+      <select id="reason" name="reason">
+        <option value="">Choose a reason</option>
+        <option value="duplicate">Duplicate order</option>
+        <option value="fraud">Suspected fraud</option>
+        <option value="customer">Customer request</option>
+      </select>
+    </div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn" data-act="close-dialog">Keep order</button>
+    <button type="button" class="btn danger" data-qa="confirm-cancel" data-act="confirm-cancel">Confirm cancel</button>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

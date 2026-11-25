@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign up - Review</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <p class="step-label">Step 4 of 4</p>
+  <h1>Review and submit</h1>
+  <dl class="summary">
+    <div><dt>Full name</dt><dd data-testid="review-fullname" data-review="fullname"></dd></div>
+    <div><dt>Email</dt><dd data-testid="review-email" data-review="email"></dd></div>
+    <div><dt>Username</dt><dd data-testid="review-username" data-review="username"></dd></div>
+    <div><dt>Phone</dt><dd data-testid="review-phone" data-review="phone"></dd></div>
+    <div><dt>Delivery date</dt><dd data-testid="review-delivery" data-review="delivery"></dd></div>
+    <div><dt>City</dt><dd data-testid="review-city" data-review="city"></dd></div>
+    <div><dt>Plan</dt><dd data-testid="review-plan" data-review="plan"></dd></div>
+    <div><dt>Seats</dt><dd data-testid="review-seats" data-review="seats"></dd></div>
+  </dl>
+  <form id="step-form" data-next="done.html" novalidate>
+    <div class="field" style="margin-top:20px">
+      <span class="label">Terms and conditions</span>
+      <div class="dp-row">
+        <button type="button" id="open-terms">View terms</button>
+        <span class="hint" data-terms-status data-testid="terms-status">Terms not accepted yet</span>
+      </div>
+      <input type="hidden" data-key="terms" data-required value="">
+    </div>
+    <div class="actions"><button type="submit" class="primary" id="submit">Place order</button></div>
+
+    <div class="overlay" id="terms-overlay" hidden>
+      <div role="dialog" aria-modal="true" aria-labelledby="terms-title">
+        <h2 id="terms-title">Terms of service</h2>
+        <div class="terms-body">
+          <p>By submitting this order you confirm that the details above are correct and that you
+          are allowed to use the payment method provided. This is a test fixture: nothing is sent anywhere.</p>
+          <p>You may cancel at any time. No refunds are issued for the unused part of a billing period.</p>
+        </div>
+        <label class="choice"><input type="checkbox" id="agree"> I accept the terms and conditions</label>
+        <div class="actions"><button type="button" id="close-terms">Dismiss</button></div>
+      </div>
+    </div>
+  </form>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

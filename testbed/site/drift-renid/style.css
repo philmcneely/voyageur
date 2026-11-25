@@ -1,0 +1,12 @@
+body { font-family: system-ui, sans-serif; background: #f4f1ea; color: #222; margin: 0; }
+.card { max-width: 520px; margin: 32px auto; background: #fff; padding: 24px 28px; border: 1px solid #d8d2c4; border-radius: 8px; }
+h1 { font-size: 1.4rem; margin: 0 0 16px; }
+h2 { font-size: 1rem; margin: 0 0 10px; }
+.panel { border-top: 1px solid #e6e0d2; padding: 14px 0; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.field input { padding: 6px 8px; border: 1px solid #b9b2a2; border-radius: 4px; }
+.check { display: block; margin: 6px 0 12px; }
+.actions { margin-top: 8px; }
+button { padding: 7px 14px; border: 1px solid #555; background: #efe9da; border-radius: 4px; cursor: pointer; }
+button.danger { background: #f3d6d0; border-color: #a33; }
+.status { font-family: ui-monospace, monospace; background: #f0ede4; padding: 6px 10px; border-radius: 4px; }

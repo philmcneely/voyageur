@@ -1,0 +1,29 @@
+{
+  "diagnose": [
+    {
+      "id": "right_heal_then_stale_expectation",
+      "scripts_affected": ["real-id"],
+      "note": "a prior heal that is still in the code next to the failing assertion and was CORRECT, followed by a stale expectation, reads the same as a wrong heal from text alone; the gate cannot tell them apart, so a model that always blames the heal would keep a wrong cause here. Adding it would fail the real-id script by design: it needs the client's live check (does the healed locator hit the element the test meant) before a revert is acted on"
+    },
+    {
+      "id": "app_bug_or_timing",
+      "scripts_affected": [],
+      "note": "a button that works but slowly and one that does not work look alike in the error text when the wait is short; which one a model says is a judgement the oracle cannot rehearse, so it is measured only with --model env"
+    },
+    {
+      "id": "unknown_is_the_right_answer",
+      "scripts_affected": [],
+      "note": "a failure whose evidence does not settle the cause; the oracle would have to be wrong on purpose to rehearse it, so it is measured only with --model env"
+    },
+    {
+      "id": "heal_in_a_page_object_file",
+      "scripts_affected": ["real-id"],
+      "note": "the prior heal is in a page-object file and the failing assertion in the test file; the standing check follows the stack across files but no suite in the testbed has a failing statement inside a page object"
+    },
+    {
+      "id": "typescript_client_stack_order",
+      "scripts_affected": [],
+      "note": "the window of test code is built from the first frame of failure.stack that is in a sent file; only the testbed's Python client (the test's own frame first) has been run against it, not the TypeScript client's stack"
+    }
+  ]
+}

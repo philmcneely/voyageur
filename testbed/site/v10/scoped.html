@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scoped</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<p data-testid="summary"></p>
+<!-- c84 [scoped chain] -->
+<section><div class="ant-select-dropdown"><div class="ant-select-item ant-select-item-option" role="option"><div class="ant-select-item-option-content" data-hit="c84">Marketing</div></div></div><div class="ant-select-dropdown ant-select-dropdown-hidden"><div class="ant-select-item ant-select-item-option" role="option"><div class="ant-select-item-option-content">Marketing (old)</div></div></div></section>
+<!-- c85 [scoped chain] -->
+<section><mat-menu data-menu="sort"><button>Sort asc</button></mat-menu><mat-menu data-menu="tag" data-hit="c85"><button>Add New Tag</button></mat-menu></section>
+<!-- c86 [scoped chain] -->
+<section><div class="agent-option" data-agent="alpha" data-hit="c86"><span class="agent-option-name">Alpha</span></div><div class="agent-option" data-agent="beta"><span class="agent-option-name">Beta</span></div></section>
+<!-- c87 [scoped chain] -->
+<section><div class="stores"><div class="store-card" data-testid="store-card" data-hit="c87"><h4>E2E Sync Store</h4><span>Local Disk</span></div><div class="store-card" data-testid="store-card"><h4>Archive</h4><span>S3</span></div></div></section>
+<!-- c88 [scoped chain] -->
+<section><div data-testid="on-call-direct-page"><span>Row A</span><b data-testid="on-call-direct-page-label" data-hit="c88">Page</b></div></section>
+<!-- c89 [scoped chain] -->
+<section><table><tbody><tr class="ant-table-row"><td>Welcome</td><td><button aria-label="Edit template" data-hit="c89"><svg data-icon="pen-to-square" viewBox="0 0 8 8" width="12" height="12"><path d="M0 0h8v8z"/></svg></button></td></tr></tbody></table></section>
+<!-- c90 [scoped chain] -->
+<section><select name="status" data-hit="c90"><option value="pending">Pending</option><option value="approved">Approved</option></select></section>
+<!-- c91 [scoped chain] -->
+<section><div class="rail col"><span>Versioning</span><button role="switch" aria-checked="false" data-testid="versioning-switch" data-hit="c91">off</button></div></section>
+<!-- c93 [scoped chain] -->
+<section><div class="ban-row"><span class="lbl"><label>Ban user until</label></span><div class="DatePicker-wrapper"><input name="banUntil" type="text" data-hit="c93"></div></div></section>
+<script src="hit.js"></script>
+<script src="components.js"></script>
+</body>
+</html>

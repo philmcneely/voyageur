@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign up - Profile and shipping</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <p class="step-label">Step 2 of 4</p>
+  <h1>Profile and shipping</h1>
+  <form id="step-form" data-next="step3.html" novalidate>
+    <div class="field">
+      <label for="phone">Phone</label>
+      <input type="tel" id="phone" name="phone" data-key="phone" required pattern="[0-9+() \-]{7,}" title="Digits, spaces and + ( ) - only" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="age">Age</label>
+      <input type="number" id="age" name="age" data-key="age" min="18" max="120" required>
+    </div>
+    <div class="field">
+      <label for="birthdate">Birth date</label>
+      <input type="date" id="birthdate" name="birthdate" data-key="birthdate" required>
+    </div>
+    <div class="field" data-datepicker data-month="2026-12">
+      <span class="label">Delivery date</span>
+      <div class="dp-row">
+        <button type="button" class="dp-open" id="delivery-open" aria-expanded="false">Choose delivery date</button>
+        <output class="dp-value" data-testid="delivery-date-value">No date chosen</output>
+      </div>
+      <div class="calendar" data-testid="calendar" hidden></div>
+      <input type="hidden" data-key="delivery" data-required value="">
+    </div>
+    <div class="field">
+      <label for="country">Country</label>
+      <select id="country" name="country" data-key="country" required>
+        <option value="">Select a country</option>
+        <option value="US">United States</option>
+        <option value="CA">Canada</option>
+        <option value="GB">United Kingdom</option>
+        <option value="DE">Germany</option>
+      </select>
+    </div>
+    <div class="field combo" data-combo data-options="Austin,Boston,Chicago,Dallas,Denver,Miami,Phoenix,Portland,Seattle">
+      <label for="city">City</label>
+      <input type="text" id="city" name="city" data-key="city" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="city-list" autocomplete="off" required>
+      <ul id="city-list" role="listbox" aria-label="Suggested cities" hidden></ul>
+    </div>
+    <fieldset class="field">
+      <legend>Shipping method</legend>
+      <label class="choice"><input type="radio" name="shipping" value="standard" data-key="shipping" required> Standard</label>
+      <label class="choice"><input type="radio" name="shipping" value="express" data-key="shipping" required> Express</label>
+      <label class="choice"><input type="radio" name="shipping" value="overnight" data-key="shipping" required> Overnight</label>
+    </fieldset>
+    <div class="field">
+      <label for="notes">Delivery notes</label>
+      <textarea id="notes" name="notes" data-key="notes" placeholder="Gate code, drop-off instructions"></textarea>
+    </div>
+    <div class="actions"><button type="submit" class="primary" id="next">Next</button></div>
+    <p class="live" data-live data-testid="live-summary"></p>
+  </form>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

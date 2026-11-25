@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inscription - Préférences et paiement</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <p class="step-label">Étape 3 sur 4</p>
+  <h1>Préférences et paiement</h1>
+  <form id="step-form" data-next="review.html" novalidate>
+
+    <div class="tabs">
+      <div role="tablist" aria-label="Groupes de préférences">
+        <button type="button" role="tab" id="tab-notify" aria-selected="true" aria-controls="panel-notify">Notifications</button>
+        <button type="button" role="tab" id="tab-privacy" aria-selected="false" aria-controls="panel-privacy" tabindex="-1">Confidentialité</button>
+        <button type="button" role="tab" id="tab-billing" aria-selected="false" aria-controls="panel-billing" tabindex="-1">Contact de facturation</button>
+      </div>
+      <div role="tabpanel" id="panel-notify" aria-labelledby="tab-notify">
+        <div class="field switch-row">
+          <span class="label" id="digest-label">Résumé hebdomadaire</span>
+          <button type="button" role="switch" aria-checked="false" aria-labelledby="digest-label" data-key="digest"></button>
+        </div>
+      </div>
+      <div role="tabpanel" id="panel-privacy" aria-labelledby="tab-privacy" hidden>
+        <div class="field">
+          <label class="choice"><input type="checkbox" data-key="public"> Rendre mon profil public</label>
+        </div>
+      </div>
+      <div role="tabpanel" id="panel-billing" aria-labelledby="tab-billing" hidden>
+        <div class="field">
+          <label for="billing-email">E-mail de facturation</label>
+          <input type="email" id="billing-email" name="billing_email" data-key="billing_email" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <fieldset class="field">
+      <legend>Centres d'intérêt</legend>
+      <label class="choice"><input type="checkbox" value="sports" data-key="interests" data-multi> Sport</label>
+      <label class="choice"><input type="checkbox" value="music" data-key="interests" data-multi> Musique</label>
+      <label class="choice"><input type="checkbox" value="travel" data-key="interests" data-multi> Voyages</label>
+    </fieldset>
+    <div class="field">
+      <label class="choice"><input type="checkbox" data-key="marketing"> E-mails marketing</label>
+    </div>
+    <div class="field">
+      <label for="budget">Budget mensuel</label>
+      <input type="range" id="budget" name="budget" data-key="budget" min="0" max="100" step="10" value="30">
+      <output for="budget" class="hint"></output>
+    </div>
+
+    <div class="field">
+      <span class="label" id="plans-label">Formule</span>
+      <table class="plans" aria-labelledby="plans-label">
+        <thead><tr><th scope="col">Formule</th><th scope="col">Sites</th><th scope="col">Assistance</th><th scope="col">Prix</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Essentiel</th><td>Jusqu'à 3 sites</td><td>Communauté</td><td>$0</td><td><button type="button" data-plan="basic" aria-pressed="false">Choisir</button></td></tr>
+          <tr><th scope="row">Pro</th><td>Sites illimités</td><td>Prioritaire</td><td>$20</td><td><button type="button" data-plan="pro" aria-pressed="false">Choisir</button></td></tr>
+          <tr><th scope="row">Équipe</th><td>Sites illimités</td><td>Responsable dédié</td><td>$50</td><td><button type="button" data-plan="team" aria-pressed="false">Choisir</button></td></tr>
+        </tbody>
+      </table>
+      <input type="hidden" data-key="plan" data-required value="">
+    </div>
+
+    <div class="field stepper" data-min="1" data-max="10">
+      <span class="label">Places</span>
+      <div class="stepper-row">
+        <button type="button" data-step="-1" aria-label="Retirer une place">&minus;</button>
+        <output data-testid="seats-value">1</output>
+        <button type="button" data-step="1" aria-label="Ajouter une place">+</button>
+      </div>
+      <input type="hidden" data-key="seats" value="1">
+    </div>
+
+    <details>
+      <summary>Options avancées</summary>
+      <div class="field">
+        <label for="referral">Code de parrainage</label>
+        <input type="text" id="referral" name="referral" data-key="referral" autocomplete="off">
+      </div>
+    </details>
+
+    <h2>Paiement</h2>
+    <div class="field">
+      <label for="cardname">Nom sur la carte</label>
+      <input type="text" id="cardname" name="cardname" data-key="cardname" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="cardnumber">Numéro de carte</label>
+      <input type="text" id="cardnumber" name="cardnumber" data-key="card" data-last4 required inputmode="numeric" pattern="[0-9 ]{16,19}" title="16 chiffres" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="cvc">Cryptogramme</label>
+      <input type="password" id="cvc" name="cvc" data-key="cvc" data-nostore required pattern="[0-9]{3,4}" title="3 ou 4 chiffres" autocomplete="off">
+    </div>
+
+    <div class="actions"><button type="submit" class="primary" id="next">Suivant</button></div>
+    <p class="live" data-live data-testid="live-summary"></p>
+  </form>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

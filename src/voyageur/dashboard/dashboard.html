@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Heal Service</title>
+<style>
+/* Solid Glass: every surface is a pane of smoked glass. The finish is at the edge (a line of light along the top, a hairline
+   all round, a shadow gathered underneath), never a gradient across the face. Colour is for status only. No external font. */
+:root {
+  --bg: oklch(0.925 0.007 265);
+  --fg: oklch(0.16 0 0);
+  --muted: oklch(0.47 0 0);
+  --faint: oklch(0.3 0.02 265 / 7%);
+  --card: oklch(0.98 0.004 265 / 66%);
+  --panel: oklch(0.975 0.004 265 / 44%);
+  --field: oklch(1 0 0 / 62%);
+  --edge: oklch(0.3 0.02 265 / 14%);
+  --rim: oklch(1 0 0 / 92%);
+  --inner: oklch(1 0 0 / 35%);
+  --shade: oklch(0.3 0.06 265 / 22%);
+  --hover: oklch(0.3 0.02 265 / 9%);
+  --ink: oklch(0.2 0 0);
+  --ink-fg: oklch(0.985 0 0);
+  --ok: oklch(0.55 0.15 152);
+  --warn: oklch(0.62 0.16 58);
+  --bad: oklch(0.55 0.22 27);
+  --info: oklch(0.54 0.16 248);
+  --advice: oklch(0.52 0.17 295);
+  --idle: oklch(0.58 0.02 265);
+  --light-1: oklch(0.68 0.13 165 / 8%);
+  --light-2: oklch(0.75 0.08 240 / 12%);
+  --radius: 14px;
+  --radius-sm: 9px;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.165 0.006 265);
+    --fg: oklch(0.96 0 0);
+    --muted: oklch(0.7 0 0);
+    --faint: oklch(1 0 0 / 6%);
+    --card: oklch(0.255 0.006 265 / 72%);
+    --panel: oklch(0.23 0.006 265 / 55%);
+    --field: oklch(0.3 0.006 265 / 60%);
+    --edge: oklch(1 0 0 / 11%);
+    --rim: oklch(1 0 0 / 16%);
+    --inner: oklch(1 0 0 / 5%);
+    --shade: oklch(0 0 0 / 55%);
+    --hover: oklch(1 0 0 / 8%);
+    --ink: oklch(0.94 0 0);
+    --ink-fg: oklch(0.17 0 0);
+    --ok: oklch(0.76 0.16 152);
+    --warn: oklch(0.8 0.15 72);
+    --bad: oklch(0.72 0.19 25);
+    --info: oklch(0.76 0.12 248);
+    --advice: oklch(0.76 0.14 295);
+    --idle: oklch(0.66 0.02 265);
+    --light-1: transparent;
+    --light-2: transparent;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: oklch(0.165 0.006 265);
+  --fg: oklch(0.96 0 0);
+  --muted: oklch(0.7 0 0);
+  --faint: oklch(1 0 0 / 6%);
+  --card: oklch(0.255 0.006 265 / 72%);
+  --panel: oklch(0.23 0.006 265 / 55%);
+  --field: oklch(0.3 0.006 265 / 60%);
+  --edge: oklch(1 0 0 / 11%);
+  --rim: oklch(1 0 0 / 16%);
+  --inner: oklch(1 0 0 / 5%);
+  --shade: oklch(0 0 0 / 55%);
+  --hover: oklch(1 0 0 / 8%);
+  --ink: oklch(0.94 0 0);
+  --ink-fg: oklch(0.17 0 0);
+  --ok: oklch(0.76 0.16 152);
+  --warn: oklch(0.8 0.15 72);
+  --bad: oklch(0.72 0.19 25);
+  --info: oklch(0.76 0.12 248);
+  --advice: oklch(0.76 0.14 295);
+  --idle: oklch(0.66 0.02 265);
+  --light-1: transparent;
+  --light-2: transparent;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; min-height: 100vh; color: var(--fg); font: 14px/1.45 var(--sans);
+  background:
+    radial-gradient(900px 520px at 8% -8%, var(--light-1), transparent 70%),
+    radial-gradient(800px 480px at 96% 4%, var(--light-2), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
+}
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; border-radius: 6px; }
+.wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* the pane: rim along the top, hairline round it, shade underneath */
+.pane {
+  background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--rim), inset 0 0 0 1px var(--inner), 0 1px 2px var(--shade), 0 10px 30px -18px var(--shade);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+}
+.pane.thin { background: var(--panel); }
+.pane > h2, .pane > .head { margin: 0; padding: 14px 16px 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.pane h2 { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.body { padding: 12px 16px 16px; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -.01em; }
+.brand small { font-weight: 500; color: var(--muted); }
+.nav { display: flex; gap: 4px; }
+.spacer { flex: 1 1 auto; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; min-height: 32px; cursor: pointer;
+  background: var(--field); border: 1px solid var(--edge); border-radius: var(--radius-sm);
+  box-shadow: inset 0 1px 0 var(--rim); white-space: nowrap;
+}
+.btn:hover, .nav a:hover, .tile:hover, tbody tr:hover, .bar-row:hover { background-color: var(--hover); }
+.btn.primary { background: var(--ink); color: var(--ink-fg); border-color: transparent; }
+.btn[aria-pressed="true"], .nav a[aria-current="page"] { background: var(--hover); box-shadow: inset 0 1px 0 var(--rim), inset 0 0 0 1px var(--edge); }
+.nav a { padding: 6px 12px; border-radius: var(--radius-sm); }
+input, select {
+  background: var(--field); border: 1px solid var(--edge); border-radius: var(--radius-sm); padding: 6px 10px; min-height: 32px;
+  box-shadow: inset 0 1px 0 var(--rim); min-width: 0;
+}
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; padding: 12px 14px; }
+.filters label { display: grid; gap: 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.filters input { width: 150px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 99px; background: var(--faint); border: 1px solid var(--edge); font-size: 12px; }
+.chip button { border: 0; background: transparent; cursor: pointer; padding: 0 6px; color: var(--muted); border-radius: 99px; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11.5px; background: var(--faint); border: 1px solid var(--edge); color: var(--muted); }
+
+/* the status glyph: three points of light. lit points say what the heal did; an open heal's points move */
+.glyph { display: inline-flex; gap: 3px; align-items: center; vertical-align: middle; }
+.glyph i { width: 5px; height: 5px; border-radius: 50%; background: var(--c, var(--idle)); opacity: .28; }
+.glyph.healed { --c: var(--ok); } .glyph.healed i { opacity: 1; box-shadow: 0 0 6px var(--c); }
+.glyph.needs_human { --c: var(--warn); } .glyph.needs_human i:nth-child(-n+2) { opacity: 1; }
+.glyph.not_drift { --c: var(--idle); } .glyph.not_drift i:first-child { opacity: 1; }
+.glyph.advised { --c: var(--advice); } .glyph.advised i:nth-child(odd) { opacity: 1; }
+.glyph.try { --c: var(--info); } .glyph.try i { animation: pulse 1.2s ease-in-out infinite; }
+.glyph.try i:nth-child(2) { animation-delay: .15s; } .glyph.try i:nth-child(3) { animation-delay: .3s; }
+.glyph.bad { --c: var(--bad); } .glyph.bad i { opacity: 1; box-shadow: 0 0 6px var(--c); }
+@keyframes pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .glyph.try i { animation: none; opacity: .7; } }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--idle)); margin-right: 6px; }
+
+/* headline tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.tile { display: grid; gap: 4px; align-content: start; padding: 14px 16px; min-height: 112px; position: relative; overflow: hidden; }
+.tile .label { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.tile .value { font-size: 30px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile .sub { font-size: 12px; color: var(--muted); }
+.tile .meter { height: 4px; border-radius: 4px; background: var(--faint); box-shadow: inset 0 1px 1px var(--shade); margin-top: 6px; overflow: hidden; }
+.tile .meter b { display: block; height: 100%; width: var(--w, 0%); background: var(--c, var(--ok)); border-radius: 4px; }
+.tile.alert { border-color: color-mix(in oklch, var(--bad) 55%, transparent); }
+.tile.alert .value { color: var(--bad); }
+.tile.clear .value { color: var(--ok); }
+
+/* panels */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+.stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--faint); box-shadow: inset 0 1px 2px var(--shade); gap: 2px; }
+.stack > * { flex: var(--n, 1) 1 0; min-width: 4px; background: var(--c); border-radius: 3px; box-shadow: inset 0 1px 0 var(--rim); }
+.stack > a:hover { filter: brightness(1.15); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12.5px; }
+.legend a, .legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend .dot { margin-right: 0; }
+.bar-row { display: grid; grid-template-columns: minmax(110px, 44%) 1fr auto; gap: 10px; align-items: center; padding: 5px 6px; margin: 0 -6px; border-radius: 7px; }
+.bar-row .track { height: 8px; border-radius: 4px; background: var(--faint); box-shadow: inset 0 1px 1px var(--shade); overflow: hidden; }
+.bar-row .track b { display: block; height: 100%; width: var(--w, 0%); background: var(--c, var(--info)); border-radius: 4px; }
+.bar-row .name { overflow-wrap: anywhere; min-width: 0; }
+.big { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.empty { padding: 18px 4px; color: var(--muted); }
+.note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+/* tables */
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px 10px; white-space: nowrap; }
+td { padding: 8px 10px; border-top: 1px solid var(--edge); vertical-align: top; }
+td.r, th.r { text-align: right; }
+td .wrapword { overflow-wrap: anywhere; }
+tbody tr.link { cursor: pointer; }
+.up { color: var(--ok); } .down { color: var(--bad); } .same { color: var(--muted); }
+.pager { display: flex; align-items: center; gap: 10px; padding: 0 16px 16px; justify-content: flex-end; }
+
+/* sign-in */
+.signin { max-width: 460px; margin: 6vh auto 0; padding: 22px; display: grid; gap: 12px; }
+.signin form { display: flex; gap: 8px; flex-wrap: wrap; }
+.signin input { flex: 1 1 200px; }
+.err { color: var(--bad); }
+
+@media (max-width: 640px) {
+  .wrap { padding: 12px 16px; gap: 12px; }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tile { padding: 12px; min-height: 100px; }
+  .tile .value { font-size: 24px; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .filters input { width: 100%; }
+  .filters label { flex: 1 1 140px; }
+  .nav { order: 3; width: 100%; }
+  .nav a { flex: 1; text-align: center; }
+  /* a table row becomes a card, so nothing scrolls sideways */
+  table.cards thead { display: none; }
+  table.cards, table.cards tbody, table.cards tr, table.cards td { display: block; width: 100%; }
+  table.cards tr { padding: 10px 12px; border-top: 1px solid var(--edge); }
+  table.cards td { border: 0; padding: 2px 0; display: flex; justify-content: space-between; gap: 12px; text-align: right; }
+  table.cards td::before { content: attr(data-label); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; text-align: left; flex: 0 0 auto; padding-top: 2px; }
+  table.cards td.r { text-align: right; }
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+"use strict";
+/* Every string that comes from a record (a locator, a test id, a reason sentence, a page path) is page copy or source text.
+   It is put on the page with textContent / text nodes only: this file never turns a string into markup. */
+const $app = document.getElementById("app");
+const state = { token: "", needToken: false, metrics: null, busy: false };
+
+try { state.token = sessionStorage.getItem("heal-token") || ""; } catch (e) { /* storage blocked: the token lives in memory */ }
+
+/* ---- small helpers ---------------------------------------------------------------------------------------------- */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
+    else if (k === "style" || k.startsWith("on")) continue;       // no inline style or handler strings: CSSOM only
+    else el.setAttribute(k, v === true ? "" : String(v));
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const css = (el, name, value) => { el.style.setProperty(name, String(value)); return el; };
+const NA = "n/a";
+const fmt = (n) => (n === null || n === undefined ? NA : Number(n).toLocaleString("en-US", { maximumFractionDigits: Math.abs(n) >= 100 ? 0 : 1 }));
+const pct = (x) => (x === null || x === undefined ? NA : (x * 100).toFixed(x > 0 && x < 0.1 ? 1 : 0) + "%");
+const cost = (x) => (x === null || x === undefined ? NA : x.toFixed(x < 1 ? 4 : 2));
+const ms = (x) => (x === null || x === undefined ? NA : x >= 1000 ? (x / 1000).toFixed(1) + " s" : Math.round(x) + " ms");
+const count = (n, one, many) => `${fmt(n)} ${n === 1 ? one : many}`;
+function ago(epoch) {
+  if (!epoch) return "";
+  const s = Math.max(0, Date.now() / 1000 - epoch);
+  if (s < 90) return "just now";
+  if (s < 5400) return Math.round(s / 60) + " min ago";
+  if (s < 129600) return Math.round(s / 3600) + " h ago";
+  return Math.round(s / 86400) + " d ago";
+}
+function when(epoch) { return epoch ? new Date(epoch * 1000).toLocaleString() : ""; }
+const words = (code) => String(code || "").replace(/_/g, " ");
+
+const OUTCOME = { healed: "healed", needs_human: "needs human", not_drift: "not drift", try: "open", advised: "advised" };
+const OUTCOME_COLOR = { healed: "var(--ok)", needs_human: "var(--warn)", not_drift: "var(--idle)", try: "var(--info)", advised: "var(--advice)" };
+const REASON = {
+  budget_exhausted: "Token budget spent", target_missing: "Target missing from the page", no_pick: "Model gave no usable pick",
+  max_calls: "Model-call limit reached", model_not_configured: "No model configured", no_stable_locator: "No stable locator is unique",
+  language_branch_unavailable: "Old copy unknown for a language branch", max_rounds: "Round limit reached",
+  no_candidate_left: "Every written locator failed live", pick_rejected: "Every pick failed a gate",
+  no_identity_proof: "Pick could not be proved the right element", deadline_exceeded: "Request over its time limit",
+  worker_failed: "Worker failed", source_not_found: "Call not found in the sent source", ambiguous_source: "Ambiguous source call",
+  open_expired: "Client sent no result in time", renamed_neighbour: "Neighbour was renamed", moved_into_frame: "Moved into a frame",
+  no_locator_in_error: "No locator in the error", assertion_mismatch: "Assertion mismatch", element_inert: "Element is inert", unknown: "No reason recorded",
+};
+const STEP = { 1: "triage", 2: "fingerprint match", 3: "text pick", 4: "vision pick", 5: "write", 6: "locale", 7: "verify" };
+const PR = { merged_unchanged: "merged unchanged", edited: "edited", reverted: "reverted", open: "open", closed_unmerged: "closed unmerged" };
+const PR_COLOR = { merged_unchanged: "var(--ok)", edited: "var(--warn)", reverted: "var(--bad)", open: "var(--info)", closed_unmerged: "var(--idle)" };
+
+function glyph(kind, label) {
+  return h("span", { class: "glyph " + kind, role: "img", "aria-label": label || OUTCOME[kind] || kind }, h("i"), h("i"), h("i"));
+}
+function dot(color) { return css(h("span", { class: "dot", "aria-hidden": "true" }), "--c", color); }
+
+/* ---- routing: the hash holds a view and its filters, never the token --------------------------------------------- */
+const GLOBAL = ["repo", "framework", "from", "to", "run"];
+function route() {
+  const raw = location.hash.replace(/^#/, "") || "/";
+  const [path, query = ""] = raw.split("?");
+  return { path, params: new URLSearchParams(query) };
+}
+function globalParams(params) {
+  const out = new URLSearchParams();
+  for (const k of GLOBAL) if (params.get(k)) out.set(k, params.get(k));
+  return out;
+}
+function listHref(drill, params) {
+  const q = new URLSearchParams(drill || "");
+  for (const [k, v] of globalParams(params)) if (!q.has(k)) q.set(k, v);
+  return "#/heals?" + q.toString();
+}
+
+/* ---- API --------------------------------------------------------------------------------------------------------- */
+async function api(path, params, raw) {
+  const url = path + (params && String(params) ? "?" + String(params) : "");
+  const headers = state.token ? { Authorization: "Bearer " + state.token } : {};
+  const res = await fetch(url, { headers, cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer" });
+  if (res.status === 401) { state.needToken = true; throw Object.assign(new Error("a token is required"), { auth: true }); }
+  if (!res.ok) {
+    let detail = "";
+    try { const j = await res.json(); detail = typeof j.detail === "string" ? j.detail : "the request was refused"; } catch (e) { /* no body */ }
+    throw new Error(`${res.status} ${detail}`.trim());
+  }
+  return raw ? res.blob() : res.json();
+}
+function apiParams(params) {                       // the filters the API understands, from the hash
+  const q = new URLSearchParams();
+  for (const [k, v] of params) if (v !== "" && k !== "offset" && k !== "limit" && k !== "view") q.set(k, v);
+  return q;
+}
+function dayStart(v) { return v ? String(Date.parse(v + "T00:00:00Z") / 1000) : ""; }
+function dayEnd(v) { return v ? String(Date.parse(v + "T23:59:59Z") / 1000) : ""; }
+function apiFilters(params) {                      // dates from the inputs are days; the API takes epoch seconds
+  const q = apiParams(params);
+  if (q.get("from")) q.set("from", dayStart(q.get("from")));
+  if (q.get("to")) q.set("to", dayEnd(q.get("to")));
+  return q;
+}
+
+/* ---- shell ------------------------------------------------------------------------------------------------------- */
+function theme() {
+  try { return localStorage.getItem("heal-theme") || "auto"; } catch (e) { return "auto"; }
+}
+function applyTheme(t) {
+  if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+}
+function cycleTheme() {
+  const next = { auto: "light", light: "dark", dark: "auto" }[theme()];
+  try { localStorage.setItem("heal-theme", next); } catch (e) { /* not kept */ }
+  applyTheme(next);
+  render();
+}
+function header(r) {
+  const on = r.path.startsWith("/heal") ? "heals" : "overview";
+  const g = globalParams(r.params).toString();
+  return h("header", { class: "pane top" },
+    h("div", { class: "brand" }, glyph("healed", "heal service"), "Heal Service", h("small", { text: state.version ? "v" + state.version : "" })),
+    h("nav", { class: "nav", "aria-label": "views" },
+      h("a", { href: "#/" + (g ? "?" + g : ""), "aria-current": on === "overview" ? "page" : null, text: "Overview" }),
+      h("a", { href: "#/heals" + (g ? "?" + g : ""), "aria-current": on === "heals" ? "page" : null, text: "Heals" })),
+    h("div", { class: "spacer" }),
+    state.token ? h("button", { class: "btn", type: "button", onclick: forgetToken, title: "Forget the token held by this tab" }, "Forget token") : null,
+    h("button", { class: "btn", type: "button", onclick: cycleTheme, title: "Theme: auto, light or dark" }, "Theme: " + theme()),
+    h("button", { class: "btn", type: "button", onclick: () => render(true) }, "Refresh"));
+}
+function forgetToken() {
+  state.token = ""; state.needToken = true;
+  try { sessionStorage.removeItem("heal-token"); } catch (e) { /* nothing to remove */ }
+  render();
+}
+function filterBar(r) {
+  const p = r.params;
+  const field = (name, label, type) => h("label", {}, label, h("input", { name, type: type || "text", value: p.get(name) || "", autocomplete: "off" }));
+  const form = h("form", { class: "pane thin filters", onsubmit: (ev) => {
+    ev.preventDefault();
+    const q = new URLSearchParams(r.params);
+    for (const k of GLOBAL) { const v = form.elements[k].value.trim(); if (v) q.set(k, v); else q.delete(k); }
+    q.delete("offset");
+    location.hash = "#" + r.path + (q.toString() ? "?" + q.toString() : "");
+  } }, field("repo", "Repo"), field("framework", "Framework"), field("from", "From", "date"), field("to", "To", "date"),
+    h("button", { class: "btn primary", type: "submit" }, "Apply"));
+  return form;
+}
+function signIn(message) {
+  const input = h("input", { type: "password", name: "token", placeholder: "Bearer token", autocomplete: "off", "aria-label": "bearer token" });
+  const form = h("form", { onsubmit: (ev) => {
+    ev.preventDefault();
+    state.token = input.value.trim(); state.needToken = false;
+    try { sessionStorage.setItem("heal-token", state.token); } catch (e) { /* kept in memory only */ }
+    render(true);
+  } }, input, h("button", { class: "btn primary", type: "submit" }, "Connect"));
+  return h("section", { class: "pane signin" }, h("div", { class: "brand" }, glyph("needs_human", "token needed"), "Heal Service"),
+    h("div", { text: message || "This service asks for its bearer token." }),
+    form,
+    h("div", { class: "note", text: "The token stays in this tab (sessionStorage), is sent only as an Authorization header to this server, and is never put in a URL." }));
+}
+
+/* ---- overview ---------------------------------------------------------------------------------------------------- */
+function tile(label, value, sub, href, opts) {
+  const o = opts || {};
+  const el = h("a", { class: "pane tile" + (o.alert ? " alert" : "") + (o.clear ? " clear" : ""), href },
+    h("div", { class: "label" }, h("span", { text: label }), o.glyph || null),
+    h("div", { class: "value", text: value }),
+    h("div", { class: "sub", text: sub || "" }));
+  if (o.meter !== undefined && o.meter !== null) el.append(h("div", { class: "meter" }, css(css(h("b"), "--w", Math.round(o.meter * 100) + "%"), "--c", o.color || "var(--ok)")));
+  return el;
+}
+function panel(title, ...body) { return h("section", { class: "pane" }, h("h2", {}, title), h("div", { class: "body" }, body)); }
+function barRows(entries, hrefOf, colorOf, labelOf) {
+  const max = Math.max(1, ...entries.map((e) => e[1]));
+  return entries.map(([key, n]) => css(h("a", { class: "bar-row", href: hrefOf(key) },
+    h("span", { class: "name", title: labelOf ? labelOf(key) : words(key), text: labelOf ? labelOf(key) : words(key) }),
+    h("span", { class: "track" }, css(h("b"), "--w", (n / max * 100) + "%")),
+    h("span", { class: "num", text: fmt(n) })), "--c", colorOf ? colorOf(key) : "var(--info)"));
+}
+function stacked(entries, hrefOf, colorOf, labelOf) {
+  const total = entries.reduce((a, e) => a + e[1], 0);
+  if (!total) return h("div", { class: "empty", text: "Nothing recorded in this window." });
+  return h("div", {},
+    h("div", { class: "stack", role: "img", "aria-label": entries.map((e) => `${labelOf(e[0])} ${e[1]}`).join(", ") },
+      entries.filter((e) => e[1] > 0).map(([k, n]) => css(css(h("a", { href: hrefOf(k), title: `${labelOf(k)}: ${n}` }), "--n", n), "--c", colorOf(k)))),
+    h("div", { class: "legend" }, entries.filter((e) => e[1] > 0).map(([k, n]) =>
+      h("a", { href: hrefOf(k) }, dot(colorOf(k)), `${labelOf(k)} `, h("span", { class: "num muted", text: fmt(n) })))));
+}
+function overview(m, params, caps) {
+  const D = m.drill, L = (q) => listHref(q, params);
+  const durable = !caps || !caps.durability || caps.durability.available;
+  const needDays = caps && caps.durability ? caps.durability.needs_retention_days : 31;
+  const top = Object.entries(m.needs_human_by_reason).sort((a, b) => b[1] - a[1])[0];
+  const priced = m.cost !== null && m.cost !== undefined;
+  const tiles = h("section", { class: "tiles", "aria-label": "headline numbers" },
+    tile("Failures seen", fmt(m.failures_seen), `${fmt(m.not_drift)} not locator drift`, L(D.failures_seen)),
+    tile("Locator drift", fmt(m.locator_drift), `${fmt(m.open)} still open`, L(D.locator_drift)),
+    tile("Success rate", pct(m.success_rate), `${fmt(m.healed)} healed of ${fmt(m.locator_drift)} drift`, L(D.success_rate), { meter: m.success_rate, color: "var(--ok)", glyph: glyph("healed") }),
+    tile("Fail rate", pct(m.fail_rate), top ? `${fmt(m.needs_human)} needs human, mostly ${(REASON[top[0]] || words(top[0])).toLowerCase()}` : `${fmt(m.needs_human)} needs human`, L(D.fail_rate), { meter: m.fail_rate, color: "var(--warn)", glyph: glyph("needs_human") }),
+    tile("Tests fixed", fmt(m.tests_fixed), "counting every test a shared fix covers", L(D.tests_fixed)),
+    tile("Locators fixed", fmt(m.locators_fixed), "distinct source locators changed", L(D.locators_fixed)),
+    tile("Model calls", fmt(m.model_calls), m.calls_per_fixed_test === null ? "no fixed tests yet" : `${fmt(m.calls_per_fixed_test)} per fixed test`, L(D.model_calls)),
+    tile("Calls that led to a fix", pct(m.calls_that_led_to_fix_rate), `${fmt(m.calls_that_led_to_fix)} of ${fmt(m.model_calls)} calls; the rest is spend with no result`, L(D.calls_that_led_to_fix), { meter: m.calls_that_led_to_fix_rate, color: "var(--info)" }),
+    tile("Tokens per fix", fmt(m.tokens_per_fix), priced ? `cost ${cost(m.cost_per_fix)} per fix, ${cost(m.cost)} in all` : "set HEAL_MODEL_PRICES to see cost", L(D.tokens_per_fix)),
+    tile("Kept rate", pct(m.kept_rate), `${fmt(m.kept)} merged unchanged of ${fmt(m.pr_closed)} closed PRs`, L(D.kept_rate), { meter: m.kept_rate, color: "var(--ok)" }),
+    durable
+      ? tile("Durability", pct(m.durability.rate), `${fmt(m.durability.held)} of ${fmt(m.durability.eligible)} held ${m.durability.runs} runs and ${m.durability.days} days; ${fmt(m.durability.pending)} too young`, L(D.durability), { meter: m.durability.rate, color: "var(--ok)" })
+      : tile("Durability", NA, `not measurable: set HEAL_RETENTION_DAYS to at least ${needDays}`, L(D.durability)),
+    tile("Escaped wrong heals", fmt(m.escaped_wrong_heals), m.escaped_wrong_heals ? "edited or reverted by a human: open each one" : "target is 0", L(D.escaped_wrong_heals), { alert: m.escaped_wrong_heals > 0, clear: m.escaped_wrong_heals === 0 && m.healed > 0, glyph: m.escaped_wrong_heals > 0 ? glyph("bad", "escaped wrong heals") : null }));
+
+  const mix = panel("Outcome mix", stacked(["healed", "needs_human", "not_drift", "try"].map((k) => [k, m.outcome_mix[k] || 0]),
+    (k) => L(D.outcome_mix[k] || D.failures_seen), (k) => OUTCOME_COLOR[k], (k) => OUTCOME[k]));
+  const reasons = Object.entries(m.needs_human_by_reason).sort((a, b) => b[1] - a[1]);
+  const why = panel("Needs-human reasons", reasons.length ? barRows(reasons, (k) => L(D.needs_human_by_reason[k]), () => "var(--warn)", (k) => REASON[k] || words(k))
+    : h("div", { class: "empty", text: "No heal ended needs human." }));
+  const steps = Object.entries(m.settled_at).sort((a, b) => Number(a[0]) - Number(b[0]));
+  const settled = panel("Settled at step", steps.length ? barRows(steps, (k) => L(D.settled_at[k]), () => "var(--info)", (k) => `${k} ${STEP[k] || ""}`)
+    : h("div", { class: "empty", text: "No heal is settled yet." }),
+    h("div", { class: "note", text: "Step 2 settles with no model call; step 3 is the text pick." }));
+  const tm = m.tier_movement;
+  const moves = panel("Locator tier movement", stacked([["up", tm.up], ["same", tm.same], ["down", tm.down]], (k) => L(D.tier_movement[k] || D.healed),
+    (k) => ({ up: "var(--ok)", same: "var(--idle)", down: "var(--bad)" })[k], (k) => ({ up: "up toward test ids", same: "same tier", down: "down toward text" })[k]));
+  const wrong = panel("Wrong-element catches", h("a", { href: L(D.wrong_element_catches), class: "big", text: fmt(m.wrong_element_catches) }),
+    h("div", { class: "muted", text: `${fmt(m.heals_with_wrong_element)} heals had a candidate on the wrong element; verify stopped ${fmt(m.rejected_candidates)} before any PR.` }));
+  const prs = Object.entries(m.pr_state);
+  const kept = panel("After the PR", prs.length ? stacked(prs, (k) => L(D.pr_state[k]), (k) => PR_COLOR[k], (k) => PR[k] || words(k))
+    : h("div", { class: "empty", text: "No client has reported on a PR yet." }),
+    h("dl", { class: "kv" }, h("dt", { text: "Broke again after healing" }), h("dd", {}, h("a", { href: L(D.durability_failed), text: fmt(m.durability.broke_again) })),
+      h("dt", { text: "Too young to judge" }), h("dd", {}, h("a", { href: L(D.durability_pending), text: fmt(m.durability.pending) }))));
+  const runs = panel("Outcome mix per run", m.runs.length ? m.runs.slice(0, 8).map((r) => h("div", { class: "bar-row" },
+    h("a", { class: "name mono", href: L(D.runs[r.run_id]), title: r.run_id, text: r.run_id }),
+    h("div", { class: "stack" }, [["healed", r.healed], ["needs_human", r.needs_human], ["not_drift", r.not_drift], ["try", r.open]].filter((e) => e[1] > 0).map(([k, n]) => css(css(h("span", { title: `${OUTCOME[k]}: ${n}` }), "--n", n), "--c", OUTCOME_COLOR[k]))),
+    h("span", { class: "num muted", title: "tokens", text: fmt(r.tokens) + " tok" }))) : h("div", { class: "empty", text: "No runs yet." }));
+  const spots = panel("Hot spots", m.hot_spots.length ? h("div", { class: "scroll" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "Locator" }), h("th", { class: "r", text: "Heals" }), h("th", { class: "r", text: "Healed" }))),
+    h("tbody", {}, m.hot_spots.map((s) => h("tr", {}, h("td", {}, h("a", { href: L(D.hot_spots[s.file + "|" + s.locator_key]) }, h("div", { class: "mono wrapword", text: s.locator_key.split("|").slice(1).join("|") }), h("div", { class: "muted mono wrapword", text: s.file }))),
+      h("td", { class: "r num", text: fmt(s.heals) }), h("td", { class: "r num", text: fmt(s.healed) })))))) : h("div", { class: "empty", text: "No locator has needed a heal yet." }),
+    h("div", { class: "note", text: "Page objects and locators that break most often: candidates for test ids in the app." }));
+  const roles = m.cost_by_role.length ? h("div", { class: "scroll" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "Model" }), h("th", { text: "Where" }), h("th", { class: "r", text: "Calls" }), h("th", { class: "r", text: "Tokens" }), h("th", { class: "r", text: "Cost" }))),
+    h("tbody", {}, m.cost_by_model.map((c) => h("tr", {}, h("td", {}, h("a", { href: L(D.cost_by_model[c.role + "|" + c.model]) }, h("div", { class: "mono wrapword", text: c.model }), h("div", { class: "muted", text: c.role }))),
+      h("td", {}, h("span", { class: "tag", text: c["local"] ? "local" : "cloud" })), h("td", { class: "r num", text: fmt(c.calls) }), h("td", { class: "r num", text: fmt(c.input_tokens + c.output_tokens) }), h("td", { class: "r num", text: cost(c.cost) })))))) : h("div", { class: "empty", text: "No model call yet." });
+  const spend = panel("Cost", roles,
+    m.local_token_share === null ? null : h("div", {}, h("div", { class: "stack", role: "img", "aria-label": "local and cloud token share" }, css(css(h("a", { href: L(D.cost_local), title: "local" }), "--n", Math.max(m.local_token_share, 0.001)), "--c", "var(--ok)"), css(css(h("a", { href: L(D.cost_cloud), title: "cloud" }), "--n", Math.max(m.cloud_token_share, 0.001)), "--c", "var(--warn)")),
+      h("div", { class: "legend" }, h("span", {}, dot("var(--ok)"), `local ${pct(m.local_token_share)}`), h("span", {}, dot("var(--warn)"), `cloud ${pct(m.cloud_token_share)}`))),
+    h("div", { class: "note", text: `Tokens per kept heal ${fmt(m.tokens_per_kept_heal)}. ` + (m.budget_exhausted ? `${m.budget_exhausted} heals ended with the budget spent.` : "No heal ended with the budget spent.") }));
+  const lt = m.latency;
+  const speed = panel("Latency", h("dl", { class: "kv" },
+    h("dt", { text: "Heal, median" }), h("dd", { text: ms(lt.heal_ms_p50) }), h("dt", { text: "Heal, 95th percentile" }), h("dd", { text: ms(lt.heal_ms_p95) }), h("dt", { text: "Slowest heal" }), h("dd", {}, h("a", { href: L(D.latency), text: ms(lt.heal_ms_max) })),
+    h("dt", { text: "Model call, median" }), h("dd", { text: ms(lt.model_ms_p50) }), h("dt", { text: "Model call, 95th percentile" }), h("dd", { text: ms(lt.model_ms_p95) })));
+  const langs = Object.entries(m.language);
+  const lang = panel("Language", langs.length ? barRows(langs, (k) => L(D.language[k]), () => "var(--advice)", (k) => k) : h("div", { class: "empty", text: "No healed page has a language recorded." }),
+    h("div", { class: "note" }, h("a", { href: L(D.branches_added), text: `${fmt(m.branches_added)} language branches added` })));
+  const extra = panel("Vision, cache, advise", h("dl", { class: "kv" },
+    h("dt", { text: "Vision calls" }), h("dd", {}, h("a", { href: L(D.vision), text: `${fmt(m.vision.calls)} in ${fmt(m.vision.heals)} heals` })),
+    h("dt", { text: "Served from the decision cache" }), h("dd", {}, h("a", { href: L(D.cache), text: `${fmt(m.cache.hits)} (${pct(m.cache.rate)})` })),
+    h("dt", { text: "Advise requests" }), h("dd", {}, h("a", { href: L(D.advise), text: `${fmt(m.advise.requests)} (${fmt(m.advise.advised)} advised)` })),
+    h("dt", { text: "Advise tokens" }), h("dd", { text: fmt(m.advise.input_tokens + m.advise.output_tokens) })),
+    h("div", { class: "note", text: "Advise requests are counted here and left out of every rate above." }));
+  return [m.truncated ? h("div", { class: "pane thin body", text: "Showing the newest 20,000 heals of this window." }) : null, tiles,
+    h("div", { class: "grid" }, mix, why, settled, moves, kept, wrong, runs, spots, spend, speed, lang, extra)];
+}
+
+/* ---- heal list --------------------------------------------------------------------------------------------------- */
+const PAGE = 50;
+function chipsFor(r) {
+  const chips = [];
+  for (const [k, v] of r.params) {
+    if (k === "offset" || k === "limit") continue;
+    chips.push(h("span", { class: "chip" }, `${k}: ${v}`, h("button", { type: "button", title: "remove this filter", "aria-label": "remove filter " + k, onclick: () => {
+      const q = new URLSearchParams(r.params); q.delete(k); q.delete("offset");
+      location.hash = "#/heals" + (q.toString() ? "?" + q.toString() : "");
+    } }, "×")));
+  }
+  return chips;
+}
+function movementCell(row) {
+  if (!row.tier_movement) return h("span", { class: "muted", text: "-" });
+  const arrow = { up: "↑", same: "→", down: "↓" }[row.tier_movement];
+  return h("span", { class: row.tier_movement, title: `${row.broken_kind || "?"} to ${row.final_kind || "?"}`, text: `${arrow} ${row.broken_kind || "?"} → ${row.final_kind || "?"}` });
+}
+async function exportCsv(r, button) {
+  const q = apiFilters(r.params); q.set("format", "csv"); q.set("limit", "20000");
+  button.disabled = true;
+  try {
+    const blob = await api("/v1/heals", q, true);
+    const url = URL.createObjectURL(blob);
+    const a = h("a", { href: url, download: "heals.csv" });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (e) { alert("The export failed: " + e.message); } finally { button.disabled = false; }
+}
+function heals(data, r) {
+  const offset = Number(r.params.get("offset") || 0);
+  const rows = data.heals;
+  const link = (n) => { const q = new URLSearchParams(r.params); q.set("offset", String(Math.max(0, n))); return "#/heals?" + q.toString(); };
+  const csv = h("button", { class: "btn", type: "button", onclick: () => exportCsv(r, csv), title: "Download every heal that matches, as CSV" }, "Export CSV");
+  const table = rows.length ? h("div", { class: "scroll" }, h("table", { class: "cards" },
+    h("thead", {}, h("tr", {}, ["Outcome", "Heal", "Test", "Locator", "Reason", "Step", "Tier", "PR", "Time"].map((t) => h("th", { text: t })))),
+    h("tbody", {}, rows.map((row) => {
+      const kind = row.outcome === "healed" && ["edited", "reverted"].includes(row.pr_state) ? "bad" : row.outcome;
+      const open = () => { location.hash = "#/heal/" + encodeURIComponent(row.heal_id) + (r.params.toString() ? "?" + r.params.toString() : ""); };
+      return h("tr", { class: "link", tabindex: "0", onclick: open, onkeydown: (ev) => { if (ev.key === "Enter") open(); } },
+        h("td", { "data-label": "Outcome" }, glyph(kind, OUTCOME[row.outcome] || row.outcome), " ", OUTCOME[row.outcome] || row.outcome, row.mode === "advise" ? h("span", { class: "tag", text: "advise" }) : null),
+        h("td", { "data-label": "Heal" }, h("a", { class: "mono", href: "#/heal/" + encodeURIComponent(row.heal_id), text: row.heal_id })),
+        h("td", { "data-label": "Test" }, h("span", { class: "wrapword", text: row.test_id || "" })),
+        h("td", { "data-label": "Locator" }, h("div", { class: "mono wrapword", text: row.broken_locator || "" }), h("div", { class: "muted mono", text: row.file ? `${row.file}:${row.line || ""}` : "" })),
+        h("td", { "data-label": "Reason" }, row.reason ? (REASON[row.reason] || words(row.reason)) : ""),
+        h("td", { class: "r num", "data-label": "Step" }, row.settled_at ? `${row.settled_at} ${STEP[row.settled_at] || ""}` : row.ended_at ? `ended ${row.ended_at}` : ""),
+        h("td", { "data-label": "Tier" }, movementCell(row)),
+        h("td", { "data-label": "PR" }, row.pr_state ? (PR[row.pr_state] || words(row.pr_state)) : ""),
+        h("td", { class: "r", "data-label": "Time", title: when(row.created_at) }, `${ago(row.created_at)}${row.duration_ms ? " · " + ms(row.duration_ms) : ""}`));
+    })))) : h("div", { class: "empty body", text: "No heal matches these filters." });
+  return h("section", { class: "pane" },
+    h("div", { class: "head" }, h("h2", { text: `Heals (${fmt(data.total)})` }), h("div", { class: "spacer" }), csv),
+    h("div", { class: "body" }, h("div", { class: "chips" }, chipsFor(r))), table,
+    h("div", { class: "pager" }, h("span", { class: "muted num", text: rows.length ? `${offset + 1}–${offset + rows.length} of ${fmt(data.total)}` : "" }),
+      offset > 0 ? h("a", { class: "btn", href: link(offset - PAGE), text: "Newer" }) : null,
+      offset + rows.length < data.total ? h("a", { class: "btn", href: link(offset + PAGE), text: "Older" }) : null));
+}
+
+/* ---- heal detail ------------------------------------------------------------------------------------------------- */
+function detail(rec, r) {
+  const back = new URLSearchParams(r.params);
+  const kv = (label, value, href) => [h("dt", { text: label }), h("dd", {}, href ? h("a", { href, text: value }) : (value === null || value === undefined || value === "" ? NA : String(value)))];
+  const kind = rec.outcome === "healed" && ["edited", "reverted"].includes(rec.pr_state) ? "bad" : rec.outcome;
+  const sameRun = rec.run_id ? "#/heals?run=" + encodeURIComponent(rec.run_id) : null;
+  const sameLocator = rec.locator_key ? "#/heals?file=" + encodeURIComponent(rec.file || "") + "&locator_key=" + encodeURIComponent(rec.locator_key) : null;
+  const calls = rec.calls.length ? h("div", { class: "scroll" }, h("table", { class: "cards" }, h("thead", {}, h("tr", {}, ["Role", "Model", "Where", "In", "Out", "Images", "Time", "Step", "Text"].map((t) => h("th", { text: t })))),
+    h("tbody", {}, rec.calls.map((c) => h("tr", {}, h("td", { "data-label": "Role", text: c.role }), h("td", { "data-label": "Model" }, h("span", { class: "mono wrapword", text: c.model })),
+      h("td", { "data-label": "Where" }, h("span", { class: "tag", text: c["local"] ? "local" : "cloud" })), h("td", { class: "r num", "data-label": "In", text: fmt(c.input_tokens) }), h("td", { class: "r num", "data-label": "Out", text: fmt(c.output_tokens) }),
+      h("td", { class: "r num", "data-label": "Images", text: fmt(c.images) }), h("td", { class: "r", "data-label": "Time", text: ms(c.latency_ms) }), h("td", { class: "r num", "data-label": "Step", text: c.step }), h("td", { "data-label": "Text", text: c.ok ? "answered" : "no answer" })))))) : h("div", { class: "empty", text: "No model call: this heal settled without one." });
+  const tries = rec.tries.length ? h("div", { class: "scroll" }, h("table", { class: "cards" }, h("thead", {}, h("tr", {}, ["Round", "Element", "Kind", "Locator written", "Result", "Detail"].map((t) => h("th", { text: t })))),
+    h("tbody", {}, rec.tries.map((t) => h("tr", {}, h("td", { class: "r num", "data-label": "Round", text: t.round }), h("td", { class: "mono", "data-label": "Element", text: t.ref }), h("td", { "data-label": "Kind", text: t.kind }),
+      h("td", { "data-label": "Locator written" }, h("span", { class: "mono wrapword", text: t.code })),
+      h("td", { "data-label": "Result" }, glyph(t.result === "ok" ? "healed" : t.result === "wrong_element" ? "bad" : t.result === "pending" ? "try" : "needs_human", t.result), " ", words(t.result)),
+      h("td", { "data-label": "Detail" }, h("span", { class: "mono wrapword", text: t.detail || "" }))))))) : h("div", { class: "empty", text: "No candidate was tried." });
+  const ev = rec.evidence && typeof rec.evidence === "object" ? Object.entries(rec.evidence) : [];
+  return [
+    h("a", { class: "btn", href: "#/heals" + (back.toString() ? "?" + back.toString() : ""), text: "← Back to the list" }),
+    h("section", { class: "pane" }, h("div", { class: "head" }, h("h2", { text: "Heal" }), h("span", { class: "mono muted", text: rec.heal_id })),
+      h("div", { class: "body" }, h("div", { class: "big" }, glyph(kind, OUTCOME[rec.outcome] || rec.outcome), " ", OUTCOME[rec.outcome] || rec.outcome, rec.reason ? " · " + (REASON[rec.reason] || words(rec.reason)) : ""),
+        rec.why ? h("p", { class: "wrapword", text: rec.why }) : null,
+        h("dl", { class: "kv" }, kv("Broken locator", rec.broken_locator), kv("Written locator", rec.final_locator), kv("Tier movement", rec.tier_movement ? `${rec.tier_movement} (${rec.broken_kind || "?"} to ${rec.final_kind || "?"})` : ""),
+          kv("Language branch", rec.branch ? "yes" : "no")))),
+    h("div", { class: "grid" },
+      h("section", { class: "pane" }, h("h2", { text: "Where" }), h("div", { class: "body" }, h("dl", { class: "kv" }, kv("Run", rec.run_id, sameRun), kv("Repo", rec.repo), kv("Framework", rec.framework), kv("Client language", rec.language), kv("Test", rec.test_id),
+        kv("Source", rec.file ? `${rec.file}:${rec.line || ""}` : "", sameLocator), kv("Page path", rec.page_path), kv("Page language", rec.page_language), kv("Time", when(rec.created_at))))),
+      h("section", { class: "pane" }, h("h2", { text: "How it ended" }), h("div", { class: "body" }, h("dl", { class: "kv" }, kv("Settled at", rec.settled_at ? `${rec.settled_at} ${STEP[rec.settled_at] || ""}` : ""), kv("Ended at", rec.ended_at ? `${rec.ended_at} ${STEP[rec.ended_at] || ""}` : ""),
+        kv("Rounds", rec.rounds), kv("Candidates tried", rec.candidates_tried), kv("Wrong element catches", rec.wrong_element), kv("Tests covered", rec.covers), kv("Decision cache", rec.cache_hit ? "hit" : "miss"),
+        kv("Budget spent", rec.budget_exhausted ? "yes" : "no"), kv("Duration", ms(rec.duration_ms))))),
+      h("section", { class: "pane" }, h("h2", { text: "After the PR" }), h("div", { class: "body" }, h("dl", { class: "kv" }, kv("PR state", rec.pr_state ? (PR[rec.pr_state] || words(rec.pr_state)) : "not reported"), kv("Failed again", rec.pr_state ? (rec.failed_again ? "yes" : "no") : ""),
+        kv("Runs since", rec.runs_since), kv("Days since", rec.days_since), kv("Reported", when(rec.followup_at))))),
+      h("section", { class: "pane" }, h("h2", { text: "Evidence summary" }), h("div", { class: "body" }, ev.length ? h("dl", { class: "kv" }, ev.map(([k, v]) => kv(words(k), typeof v === "object" ? JSON.stringify(v) : v))) : h("div", { class: "empty", text: "None kept." }),
+        h("div", { class: "note", text: "Counts only: the service keeps no file contents, page text or screenshots." })))),
+    panel("Model calls", calls), panel("Candidates tried", tries)];
+}
+
+/* ---- render ------------------------------------------------------------------------------------------------------ */
+let generation = 0;
+async function render() {
+  const mine = ++generation;
+  const r = route();
+  if (state.needToken && !state.token) { $app.replaceChildren(signIn()); return; }
+  $app.replaceChildren(header(r), filterBar(r), h("div", { class: "pane thin body muted", text: "Loading…" }));
+  try {
+    let view;
+    if (r.path.startsWith("/heal/")) {
+      const id = decodeURIComponent(r.path.slice(6));
+      view = detail(await api("/v1/heals/" + encodeURIComponent(id)), r);
+    } else if (r.path.startsWith("/heals")) {
+      const q = apiFilters(r.params);
+      q.set("limit", String(PAGE)); q.set("offset", r.params.get("offset") || "0");
+      view = heals(await api("/v1/heals", q), r);
+    } else {
+      const metrics = await api("/v1/metrics", apiFilters(r.params));
+      let caps = null;
+      try { caps = await api("/v1/capabilities"); } catch (e) { if (e.auth) throw e; /* the note is optional */ }
+      view = overview(metrics, r.params, caps);
+    }
+    if (mine !== generation) return;
+    if (!state.version) { try { state.version = (await api("/healthz")).version; } catch (e) { /* the version is a label only */ } }
+    $app.replaceChildren(header(r), filterBar(r), ...[].concat(view).filter(Boolean));
+  } catch (e) {
+    if (mine !== generation) return;
+    if (e.auth) { $app.replaceChildren(signIn(state.token ? "That token was not accepted." : undefined)); return; }
+    $app.replaceChildren(header(r), filterBar(r), h("div", { class: "pane body err", role: "alert", text: "Could not load: " + e.message }));
+  }
+}
+applyTheme(theme());
+window.addEventListener("hashchange", () => render());
+render();
+</script>
+</body>
+</html>

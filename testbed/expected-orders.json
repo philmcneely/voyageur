@@ -1,0 +1,203 @@
+{
+  "server": "http://127.0.0.1:8765/",
+  "tests": {
+    "grid_toolbar": {
+      "python": "test_orders_grid_and_toolbar",
+      "ts": "orders grid and toolbar"
+    },
+    "side_panel": {
+      "python": "test_side_panel_and_dialog",
+      "ts": "side panel and dialog"
+    },
+    "payment_shadow": {
+      "python": "test_payment_frame_and_shadow",
+      "ts": "payment frame and shadow"
+    }
+  },
+  "variants": {
+    "base": {
+      "grid_toolbar": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "side_panel": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      },
+      "payment_shadow": {
+        "kind": "none",
+        "also_contains": [],
+        "python": {
+          "result": "passed"
+        },
+        "ts": {
+          "result": "passed"
+        }
+      }
+    },
+    "v7": {
+      "grid_toolbar": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 15,
+          "statement": "page.get_by_test_id(\"orders-table\").locator(\"tbody tr\").nth(3).locator(\"td\").nth(2).locator(\"button\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 10,
+          "statement": "await page.getByTestId('orders-table').locator('tbody tr').nth(3).locator('td').nth(2).locator('button').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "side_panel": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 42,
+          "statement": "page.locator(\"#panel-notes > textarea\").fill(\"Call before delivery\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.fill: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 36,
+          "statement": "await page.locator('#panel-notes > textarea').fill('Call before delivery');",
+          "error": "TimeoutError: locator.fill: Timeout 5000ms exceeded."
+        }
+      },
+      "payment_shadow": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 69,
+          "statement": "page.locator(\"order-flag button.toggle\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 62,
+          "statement": "await page.locator('order-flag button.toggle').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      }
+    },
+    "v8": {
+      "grid_toolbar": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 21,
+          "statement": "page.get_by_label(\"Actions for order 1043\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 16,
+          "statement": "await page.getByLabel('Actions for order 1043').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "side_panel": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 38,
+          "statement": "page.locator(\"#tab-history\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 32,
+          "statement": "await page.locator('#tab-history').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "payment_shadow": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 61,
+          "statement": "page.frame_locator(\"#payment-frame\").locator(\"input[name=card]\").fill(\"4242 4242 4242 4242\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.fill: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 54,
+          "statement": "await page.frameLocator('#payment-frame').locator('input[name=card]').fill('4242 4242 4242 4242');",
+          "error": "TimeoutError: locator.fill: Timeout 5000ms exceeded."
+        }
+      }
+    },
+    "v9": {
+      "grid_toolbar": {
+        "kind": "drift",
+        "also_contains": [
+          "missing"
+        ],
+        "python": {
+          "result": "failed",
+          "line": 25,
+          "statement": "page.get_by_role(\"row\").filter(has_text=\"Echo GmbH\").get_by_role(\"checkbox\").check()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 20,
+          "statement": "await page.getByRole('row').filter({ hasText: 'Echo GmbH' }).getByRole('checkbox').check();",
+          "error": "TimeoutError: locator.check: Timeout 5000ms exceeded."
+        }
+      },
+      "side_panel": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 38,
+          "statement": "page.locator(\"#tab-history\").click()",
+          "error": "playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 32,
+          "statement": "await page.locator('#tab-history').click();",
+          "error": "TimeoutError: locator.click: Timeout 5000ms exceeded."
+        }
+      },
+      "payment_shadow": {
+        "kind": "drift",
+        "also_contains": [],
+        "python": {
+          "result": "failed",
+          "line": 60,
+          "statement": "page.locator(\"input[name=zip]\").fill(\"73301\")",
+          "error": "playwright._impl._errors.TimeoutError: Locator.fill: Timeout 5000ms exceeded."
+        },
+        "ts": {
+          "result": "failed",
+          "line": 53,
+          "statement": "await page.locator('input[name=zip]').fill('73301');",
+          "error": "TimeoutError: locator.fill: Timeout 5000ms exceeded."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+import { test, expect } from '@playwright/test';
+
+let BASE = process.env.QA_BASE_URL || 'http://127.0.0.1:8765/base/';
+if (!BASE.endsWith('/')) BASE += '/';
+
+test.use({ actionTimeout: 5000 });
+
+test('signup end to end', async ({ page }) => {
+  await page.goto(BASE + 'index.html');
+  await page.getByLabel('Full name').fill('Jane Doe');
+  await page.getByPlaceholder('you@example.com').fill('jane@example.com');
+  await page.getByTestId('username-input').fill('janed');
+  await page.locator('#password').fill('S3cretPass!');
+  await page.locator('input[name=confirm]').fill('S3cretPass!');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByLabel('Phone').fill('+1 555 010 4477');
+  await page.getByRole('spinbutton', { name: 'Age' }).fill('34');
+  await page.getByLabel('Birth date').fill('1990-05-17');
+  await page.getByRole('button', { name: 'Choose delivery date' }).click();
+  await page.getByTestId('calendar').getByRole('button', { name: '15', exact: true }).click();
+  await page.locator('select[name=country]').selectOption('US');
+  await page.getByRole('combobox', { name: 'City' }).fill('Aus');
+  await page.getByRole('option', { name: 'Austin' }).click();
+  await page.getByRole('radio', { name: 'Express' }).check();
+  await page.getByPlaceholder('Gate code, drop-off instructions').fill('Leave with the concierge');
+  await page.getByText('Next', { exact: true }).click();
+  await page.getByRole('switch', { name: 'Weekly digest' }).click();
+  await page.getByRole('tab', { name: 'Billing contact' }).click();
+  await page.getByLabel('Billing email').fill('billing@example.com');
+  await page.getByLabel('Music').check();
+  await page.getByLabel('Travel').check();
+  await page.getByRole('checkbox', { name: 'Marketing emails' }).check();
+  await page.locator('#budget').fill('70');
+  await page.getByRole('row', { name: 'Pro' }).getByRole('button', { name: 'Select' }).click();
+  await page.getByRole('button', { name: 'Increase seats' }).click();
+  await page.getByRole('button', { name: 'Increase seats' }).click();
+  await page.getByRole('button', { name: 'Decrease seats' }).click();
+  await page.getByText('Advanced options').click();
+  await page.getByLabel('Referral code').fill('FRIEND42');
+  await page.getByLabel('Name on card').fill('Jane Doe');
+  await page.getByLabel('Card number').fill('4242 4242 4242 4242');
+  await page.locator('input[name=cvc]').fill('123');
+  await page.locator('#next').click();
+  await page.getByRole('button', { name: 'Read terms' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByLabel('I agree to the terms').check();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: 'Submit order' }).click();
+  await expect(page.getByTestId('done-fullname')).toHaveText('Jane Doe');
+  await expect(page.getByTestId('done-email')).toHaveText('jane@example.com');
+  await expect(page.getByTestId('done-username')).toHaveText('janed');
+  await expect(page.getByTestId('done-phone')).toHaveText('+1 555 010 4477');
+  await expect(page.getByTestId('done-age')).toHaveText('34');
+  await expect(page.getByTestId('done-birthdate')).toHaveText('1990-05-17');
+  await expect(page.getByTestId('done-delivery')).toHaveText('2026-12-15');
+  await expect(page.getByTestId('done-country')).toHaveText('US');
+  await expect(page.getByTestId('done-city')).toHaveText('Austin');
+  await expect(page.getByTestId('done-shipping')).toHaveText('express');
+  await expect(page.getByTestId('done-digest')).toHaveText('yes');
+  await expect(page.getByTestId('done-billing-email')).toHaveText('billing@example.com');
+  await expect(page.getByTestId('done-interests')).toContainText('music');
+  await expect(page.getByTestId('done-marketing')).toHaveText('yes');
+  await expect(page.getByTestId('done-budget')).toHaveText('70');
+  await expect(page.getByTestId('done-plan')).toHaveText('pro');
+  await expect(page.getByTestId('done-seats')).toHaveText('2');
+  await expect(page.getByTestId('done-cardname')).toHaveText('Jane Doe');
+  await expect(page.getByTestId('done-card')).toHaveText('**** 4242');
+  await expect(page.getByTestId('done-terms')).toHaveText('yes');
+});
+
+test('tabs and accordion', async ({ page }) => {
+  await page.goto(BASE + 'step3.html');
+  await page.getByRole('tab', { name: 'Billing contact' }).click();
+  await page.getByLabel('Billing email').fill('ap@example.com');
+  await expect(page.getByTestId('live-summary')).toContainText('billing_email: ap@example.com');
+  await page.getByRole('tab', { name: 'Privacy' }).click();
+  await page.getByLabel('Show my profile publicly').check();
+  await expect(page.getByTestId('live-summary')).toContainText('public: yes');
+  await page.getByText('Advanced options').click();
+  await page.getByLabel('Referral code').fill('PROMO7');
+  await expect(page.getByTestId('live-summary')).toContainText('referral: PROMO7');
+});
+
+test('plan table and stepper', async ({ page }) => {
+  await page.goto(BASE + 'step3.html');
+  await page.getByRole('button', { name: 'Select' }).nth(1).click();
+  await expect(page.getByTestId('live-summary')).toContainText('plan: pro');
+  await page.getByRole('row', { name: 'Team' }).getByRole('button', { name: 'Select' }).click();
+  await expect(page.getByTestId('live-summary')).toContainText('plan: team');
+  await page.getByRole('button', { name: 'Increase seats' }).click();
+  await page.getByRole('button', { name: 'Increase seats' }).click();
+  await page.getByRole('button', { name: 'Increase seats' }).click();
+  await page.getByRole('button', { name: 'Decrease seats' }).click();
+  await expect(page.getByTestId('live-summary')).toContainText('seats: 3');
+});

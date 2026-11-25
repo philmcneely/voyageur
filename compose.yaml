@@ -1,0 +1,26 @@
+# docker compose up -d   (HEAL_SERVICE_TOKEN and the model settings come from your shell or a .env file beside this one)
+# The port is published on 127.0.0.1 only; put a TLS reverse proxy in front before opening it to other machines.
+services:
+  voyageur:
+    build: .
+    image: voyageur:local
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      HEAL_SERVICE_TOKEN: ${HEAL_SERVICE_TOKEN:?set HEAL_SERVICE_TOKEN to 32+ characters}
+      HEAL_TEXT_PROVIDER: ${HEAL_TEXT_PROVIDER:-openai}
+      HEAL_TEXT_BASE_URL: ${HEAL_TEXT_BASE_URL:-}
+      HEAL_TEXT_MODEL: ${HEAL_TEXT_MODEL:-}
+      HEAL_TEXT_API_KEY: ${HEAL_TEXT_API_KEY:-}
+      HEAL_RETENTION_DAYS: ${HEAL_RETENTION_DAYS:-31}
+    volumes:
+      - heal-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+volumes:
+  heal-data:

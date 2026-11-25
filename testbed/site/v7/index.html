@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orders</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" data-state="idle">
+  <div class="_layout-root_26d6b">
+  <div class="_notice-bar_5f1f8" role="status">Scheduled maintenance tonight at 02:00 UTC</div>
+  <div class="_shell_2591c">
+    <div class="_side-col_93be6">
+      <div class="_side-head_a8ba9">
+        <h2>Order <span data-testid="current-order">1040</span></h2>
+        <button type="button" class="_cancel_10aec" data-act="cancel-order">Cancel order</button>
+      </div>
+      <div class="_grid_ff4a0" data-testid="activity-feed" aria-label="Recent activity">
+        <div class="_grid-row_8d153" data-activity="1045"><span class="_cell_8d276">#1045</span><span class="_note_aad65">refunded 2m ago</span></div>
+        <div class="_grid-row_8d153" data-activity="1043"><span class="_cell_8d276">#1043</span><span class="_note_aad65">created 9m ago</span></div>
+        <div class="_grid-row_8d153" data-activity="1041"><span class="_cell_8d276">#1041</span><span class="_note_aad65">shipped 1h ago</span></div>
+        <div class="_grid-row_8d153" data-activity="1044"><span class="_cell_8d276">#1044</span><span class="_note_aad65">paid 3h ago</span></div>
+      </div>
+      <div class="_tabs_5db8d">
+        <div class="_tabs-bar_34155">
+          <div role="tablist" aria-label="Order sections">
+            <button type="button" role="tab" id="tab-details" data-testid="tab-details" data-tab="details" aria-selected="true" aria-controls="panel-details">Details</button>
+            <button type="button" role="tab" id="tab-history" data-testid="tab-history" data-tab="history" aria-selected="false" aria-controls="panel-history">History</button>
+            <button type="button" role="tab" id="tab-notes" data-testid="tab-notes" data-tab="notes" aria-selected="false" aria-controls="panel-notes">Notes</button>
+          </div>
+        </div>
+        <div class="_tabs-body_709bc">
+          <div role="tabpanel" id="panel-details" aria-labelledby="tab-details" data-panel="details">
+            <p class="_muted_0a4e1">Flag this order if the payment looks wrong.</p>
+            <order-flag></order-flag>
+          </div>
+          <div role="tabpanel" id="panel-history" aria-labelledby="tab-history" data-panel="history" hidden>
+            <ul class="_events_16908">
+              <li data-event="e301"><span class="_ev-title_3f50b">Payment captured</span></li>
+              <li data-event="e302"><span class="_ev-title_3f50b">Label printed</span></li>
+              <li data-event="e303"><span class="_ev-title_3f50b">Handed to carrier</span></li>
+            </ul>
+          </div>
+          <div role="tabpanel" id="panel-notes" aria-labelledby="tab-notes" data-panel="notes" hidden>
+            <div class="_field-wrap_a19b6"><div class="_field-wrap-inner_c0bdb">
+              <textarea name="note" rows="3" placeholder="Internal note"></textarea>
+            </div></div>
+            <div class="_actions_ebb67"><button type="button" class="_btn_d4f5c" data-act="save-note">Save note</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="_main-col_adc83">
+      <div class="_page-head_1afef">
+        <div class="_page-head-inner_70efc">
+          <h1>Orders</h1>
+          <div class="_page-head-meta_8c549"><span class="_muted_0a4e1">Region EU-West</span></div>
+        </div>
+      </div>
+      <div class="_toolbar_f50b3">
+        <div class="_filters_2c988" role="group" aria-label="Status filter">
+          <button type="button" class="_chip_2f2ec" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" class="_chip_2f2ec" data-filter="shipped" aria-pressed="false">Shipped</button>
+          <button type="button" class="_chip_2f2ec" data-filter="paid" aria-pressed="false">Paid</button>
+          <button type="button" class="_chip_2f2ec" data-filter="refunded" aria-pressed="false">Refunded</button>
+        </div>
+        <div class="_toolbar-right_81aa1">
+          <input type="search" name="q" placeholder="Search orders" aria-label="Search orders">
+          <button type="button" class="_btn_d4f5c" data-cy="export-csv" data-format="csv">Export CSV</button>
+          <button type="button" class="_btn_d4f5c" data-cy="export-pdf" data-format="pdf">Export PDF</button>
+        </div>
+      </div>
+      <div class="_panel_f1e5d">
+        <div class="_table-wrap_96193">
+          <div class="_table-scroll_8c4c4">
+            <table class="_orders_12c50" data-testid="orders-table" aria-label="Orders">
+              <thead>
+                <tr>
+                  <th scope="col">Order</th>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Total</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span class="_sr-only_b6c15">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-qa="order-row-1040">
+                  <td data-col="id"><label class="_pick_27cf1"><input type="checkbox" name="sel" value="1040"><span class="_num_0fc3c">#1040</span></label></td>
+                  <td data-col="customer">Acme Corp</td>
+                  <td data-col="total" data-value="12000">$120.00</td>
+                  <td data-col="status"><button type="button" class="_badge_dcdd1" data-qa="status" data-status="pending">pending</button></td>
+                  <td data-col="actions"><button type="button" class="_icon-btn_ae529" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1040" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1041">
+                  <td data-col="id"><label class="_pick_27cf1"><input type="checkbox" name="sel" value="1041"><span class="_num_0fc3c">#1041</span></label></td>
+                  <td data-col="customer">Birch Ltd</td>
+                  <td data-col="total" data-value="8450">$84.50</td>
+                  <td data-col="status"><button type="button" class="_badge_dcdd1" data-qa="status" data-status="shipped">shipped</button></td>
+                  <td data-col="actions"><button type="button" class="_icon-btn_ae529" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1041" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr class="_divider_8d249"><th scope="rowgroup" colspan="5">Earlier orders</th></tr>
+                <tr data-qa="order-row-1042">
+                  <td data-col="id"><label class="_pick_27cf1"><input type="checkbox" name="sel" value="1042"><span class="_num_0fc3c">#1042</span></label></td>
+                  <td data-col="customer">Cobalt Inc</td>
+                  <td data-col="total" data-value="23999">$239.99</td>
+                  <td data-col="status"><button type="button" class="_badge_dcdd1" data-qa="status" data-status="paid">paid</button></td>
+                  <td data-col="actions"><button type="button" class="_icon-btn_ae529" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1042" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1043">
+                  <td data-col="id"><label class="_pick_27cf1"><input type="checkbox" name="sel" value="1043"><span class="_num_0fc3c">#1043</span></label></td>
+                  <td data-col="customer">Delta LLC</td>
+                  <td data-col="total" data-value="4300">$43.00</td>
+                  <td data-col="status"><button type="button" class="_badge_dcdd1" data-qa="status" data-status="pending">pending</button></td>
+                  <td data-col="actions"><button type="button" class="_icon-btn_ae529" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1043" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1044">
+                  <td data-col="id"><label class="_pick_27cf1"><input type="checkbox" name="sel" value="1044"><span class="_num_0fc3c">#1044</span></label></td>
+                  <td data-col="customer">Echo GmbH</td>
+                  <td data-col="total" data-value="15750">$157.50</td>
+                  <td data-col="status"><button type="button" class="_badge_dcdd1" data-qa="status" data-status="paid">paid</button></td>
+                  <td data-col="actions"><button type="button" class="_icon-btn_ae529" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1044" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+                <tr data-qa="order-row-1045">
+                  <td data-col="id"><label class="_pick_27cf1"><input type="checkbox" name="sel" value="1045"><span class="_num_0fc3c">#1045</span></label></td>
+                  <td data-col="customer">Foxtrot SA</td>
+                  <td data-col="total" data-value="990">$9.90</td>
+                  <td data-col="status"><button type="button" class="_badge_dcdd1" data-qa="status" data-status="refunded">refunded</button></td>
+                  <td data-col="actions"><button type="button" class="_icon-btn_ae529" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for order 1045" data-cy="row-menu">&#8943;</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="_panel_f1e5d">
+        <section class="_pay_b02a4" aria-labelledby="pay-title">
+          <div class="_pay-inner_92724">
+            <h2 id="pay-title">Collect payment</h2>
+            <div class="_field_06e3d">
+              <label for="zip">Billing ZIP</label>
+              <input type="text" id="zip" name="zip" autocomplete="off">
+            </div>
+            <iframe id="payment-frame" name="payment" title="Secure card entry" src="payment.html"></iframe>
+          </div>
+        </section>
+      </div>
+      <div class="_panel_f1e5d">
+        <p class="_live_d0dbe" data-testid="summary"></p>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+<div id="portal-root"></div>
+<div class="_backdrop_0adb8" data-backdrop hidden></div>
+<div role="dialog" aria-modal="true" aria-labelledby="dlg-title" data-testid="cancel-dialog" class="_dialog_91c7e" hidden>
+  <div class="_dialog-head_893a6">
+    <h2 id="dlg-title">Cancel this order?</h2>
+    <button type="button" class="_icon-btn_ae529" aria-label="Close dialog" data-qa="dialog-close" data-act="close-dialog">&#215;</button>
+  </div>
+  <div class="_dialog-body_6fdb5">
+    <div class="_field_06e3d">
+      <label for="reason">Reason</label>
+      <select id="reason" name="reason">
+        <option value="">Choose a reason</option>
+        <option value="duplicate">Duplicate order</option>
+        <option value="fraud">Suspected fraud</option>
+        <option value="customer">Customer request</option>
+      </select>
+    </div>
+  </div>
+  <div class="_dialog-foot_39d9a">
+    <button type="button" class="_btn_d4f5c" data-act="close-dialog">Keep order</button>
+    <button type="button" class="_btn_d4f5c _danger_b136e" data-qa="confirm-cancel" data-act="confirm-cancel">Confirm cancel</button>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

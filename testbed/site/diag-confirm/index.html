@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account settings</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <h1>Account settings</h1>
+  <section id="profile" class="panel" data-testid="profile-panel">
+    <h2>Profile</h2>
+    <div class="field">
+      <label for="display-name">Display name</label>
+      <input type="text" id="display-name" name="display_name" data-testid="display-name-input" autocomplete="off">
+    </div>
+    <label class="check"><input type="checkbox" data-pref="newsletter"> Email me the newsletter</label>
+    <div class="actions"><button type="button" id="save" data-testid="save-settings">Save changes</button></div>
+  </section>
+  <section id="danger" class="panel">
+    <h2>Danger zone</h2>
+    <div class="actions"><button type="button" id="delete" data-testid="delete-account" class="danger">Delete account</button></div>
+  </section>
+  <div id="confirm" role="dialog" aria-label="Confirm deletion" hidden>
+    <p>Delete this account?</p>
+    <div class="actions"><button type="button" id="confirm-delete">Confirm</button> <button type="button" id="cancel-delete">Cancel</button></div>
+  </div>
+  <p class="status" id="summary" data-testid="summary">idle</p>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

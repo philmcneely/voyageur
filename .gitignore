@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.egg-info/
+.pytest_cache/
+.heal/
+.ruff_cache/
+testbed/tests/ts/node_modules
+.claude/

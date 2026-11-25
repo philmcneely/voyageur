@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inscription - Compte</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <p class="step-label">Étape 1 sur 4</p>
+  <h1>Créez votre compte</h1>
+  <form id="step-form" data-next="step2.html" novalidate>
+    <div class="field">
+      <label for="fullname">Nom et prénom</label>
+      <input type="text" id="fullname" name="fullname" data-key="fullname" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="email">Adresse e-mail</label>
+      <input type="email" id="email" name="email" data-key="email" placeholder="vous@exemple.fr" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="username">Identifiant</label>
+      <input type="text" id="username" name="username" data-key="username" data-testid="username-input" required minlength="3" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" data-key="password" data-nostore required minlength="8" autocomplete="new-password">
+      <p class="hint">Au moins 8 caractères.</p>
+    </div>
+    <div class="field">
+      <label for="confirm">Confirmez le mot de passe</label>
+      <input type="password" id="confirm" name="confirm" data-key="confirm" data-nostore data-match="password" required autocomplete="new-password">
+    </div>
+    <div class="actions"><button type="submit" class="primary" id="next">Suivant</button></div>
+    <p class="live" data-live data-testid="live-summary"></p>
+  </form>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

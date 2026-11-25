@@ -399,7 +399,7 @@ them) plus:
 | Field | |
 | --- | --- |
 | `locators` | optional list of 1 to 100 locator expressions as written in a test (`page.get_by_test_id("login")`, `this.page.locator('#go')`; no action after them), each up to 4000 characters; a `.first` / `.last` / `.nth(n)` narrows as in an audit. Over 100 is a 413. Omit it to mark every element (below). |
-| `options.labels` | `numbers` (default): a numbered tab on each box, the legend maps number to locator. `locators`: the locator text is drawn on the tab as well (see below). |
+| `options.labels` | `numbers` (default): a numbered tab on each box, the legend maps number to locator. `locators`: the locator text is drawn on the tab instead of the number where there is room for it, else the number alone (see below). |
 | `options.kinds` | with no `locators` only: `["interactive"]`, `["text"]` or both (the default, everything). With `locators` it is a 422. |
 | `client.language`, `test_id_attribute` | as in an audit: the language the service writes locators in (default `python`) and the project's test id attribute. |
 
@@ -418,13 +418,13 @@ landmarks the probe lists, as well as inputs, buttons and links. Text locators n
 ```json
 {"image": {"media_type": "image/png", "data": "<base64>", "width": 240, "height": 180},
  "labels": "numbers",
- "legend": [{"number": 1, "locator": "self.page.locator('#pwd')", "label": null, "label_truncated": false, "status": "matched",
+ "legend": [{"number": 1, "locator": "self.page.locator('#pwd')", "label": null, "label_truncated": false, "number_only": 0, "status": "matched",
              "count": 1, "ref": "e1", "refs": ["e1"], "visible": 1, "color": "#c81e1e", "kind": "id", "tier": 1, "copy_based": false,
              "element_kind": null},
             {"number": 2, "locator": "self.page.locator('#ghost')", "status": "not_found", "count": 0, "ref": null, "refs": [], "visible": 0, "color": null, "...": "..."},
             {"number": 3, "locator": "self.page.locator('input')", "status": "ambiguous", "count": 2, "ref": null, "refs": ["e0", "e1"], "visible": 2, "color": "#1e3cc8", "...": "..."}],
  "summary": {"locators": 3, "marked": 2, "not_visible": 0, "by_status": {"matched": 1, "not_found": 1, "ambiguous": 1},
-             "by_element_kind": {}, "inventory": 3, "inventory_complete": true},
+             "by_element_kind": {}, "number_only": 0, "inventory": 3, "inventory_complete": true},
  "truncated": false}
 ```
 
@@ -442,13 +442,25 @@ and `copy_based` whether it depends on page copy. With no locators `element_kind
 one a handler acts on) or `text` (everything else: headings, labels, paragraphs, status text, sections and landmarks), and `summary.by_element_kind` counts them.
 
 **Overlapping boxes.** Boxes are drawn biggest first, so a section lies under what it holds. A number whose box overlaps a lower number's box takes the next free color
-(the legend's `color` is the one on the picture), a box that sits just inside another is drawn one outline's width further in, and the tabs are placed biggest box first,
-above the box, else below, else inside it, never over another tab when a place is free.
+(the legend's `color` is the one on the picture), a box that sits just inside another is drawn one outline's width further in, and the tabs are placed biggest box first.
+
+**Where a tab goes.** A tab sits outside the box it belongs to (above, below or beside its outline), so it never covers the element's own content, and it covers no other marked
+box and no other tab. Places are tried in a fixed order: above and below the box (left aligned, right aligned, centred), then beside it (top aligned, bottom aligned); the first one inside the picture that
+is clear wins, and nothing is cut off or drawn off the edge to make one. A number with no clean place may lie in the gaps inside the boxes that hold its element (the tab of a field in the section around
+the field), still clear of every other box and tab; a line of locator text never does, since the holding box has content of its own. When even that fails (boxes that touch on every side) the number goes where it
+covers the least (px of other boxes and tabs under it, twice that for its own box; above, below, inside the top, inside the bottom, in that order, break a tie), so a mark is never dropped. Only marked boxes are
+avoided: page text that is not marked can still lie under a tab.
 
 **Label text.** With `labels: locators` the tab holds the locator itself, drawn from a built-in 5x7 bitmap font for printable ASCII (no font file, no platform font, so the bytes
 are the same everywhere). The drawn text is only the locator: ASCII control characters are removed, any other character is drawn as `?`, it is cut to 48 characters with `...`, and
 to what fits the picture's width. `legend[].locator` is always the whole locator; `label` is what is on the picture and `label_truncated` says it is shorter. A locator with no box
 (not found, not visible) is drawn nowhere. With no locators, an element with no stable locator keeps its number as its tab.
+
+**When the text does not fit.** A line of text is wider than a number, so it may have no place outside its box that covers nothing. The tab then holds the box's **number alone**
+(the legend is the key: `locator` is whole and the number in the picture is its `number`). The legend says so: `legend[].number_only` is how many of the entry's boxes were drawn as the number
+because the text had no place (0 when the text was drawn; always 0 with `labels: numbers`), `label` is `null` when the number was drawn for all of its boxes, and `summary.number_only` counts the
+entries with at least one such box. A locator that matches several elements is placed box by box, so some of its boxes may show text and others the number. An entry with no unique locator
+(`locator` null) keeps its number as always and is not counted as a fallback.
 
 `429` (with `Retry-After`) when every slot is taken: an overlay shares the audit's slots (at most workers minus 1 at once, so a heal always gets a worker). The work is done in the killable worker
 under the request deadline: past it the answer is a 504 (a worker that died, a 503). The matching stops at `HEAL_AUDIT_BUDGET_S` with `truncated: true` and the legend of the locators done.

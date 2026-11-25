@@ -28,12 +28,16 @@ that wants to see where its locators land); the service itself looks at nothing 
 Labels (`options.labels`): `numbers` draws the mark's number and the legend ties it to the locator; `locators` draws the locator
 itself (overlay.clean_label: ASCII only, control characters removed, at most 48 characters, and no wider than the picture) and
 the legend is returned as well, its `locator` always whole and its `label` the text that is on the picture (`label_truncated`
-says it is shorter). Boxes that overlap (a section and what it holds) get different colors, said in the legend as `color`.
+says it is shorter). A tab sits outside its box and covers no other box and no other tab; a locator whose text has no such place
+is drawn as its number alone, and the legend says so (`number_only`, how many of its boxes; `label` is null when all of them, and
+`summary.number_only` counts the entries), the whole locator being in `locator`. Boxes that overlap (a section and what it holds)
+get different colors, said in the legend as `color`.
 
 Features:
     ✓ run_overlay(): a module-level function over a parsed request, so a killable worker runs it under the request deadline
     ✓ The legend of every request: number, locator, label, status, count, ref(s), how many boxes were drawn, color, kind, tier
-      (the locator's stability rank), copy_based and, with no locators sent, element_kind
+      (the locator's stability rank), copy_based, number_only (boxes that show the number because the text had no room) and,
+      with no locators sent, element_kind
     ✓ Bounded: at most 50 boxes per locator, 600 on the picture, 100 locators (schemas), 500 elements; the work budget
       (HEAL_AUDIT_BUDGET_S) ends the matching with `truncated` true and the legend of the locators done, never an error; a
       locator whose boxes were not all drawn for want of room (the 600) also sets `truncated` and is never reported not_visible
@@ -97,7 +101,7 @@ def _entry(number: int, locator: Optional[str], status: str, count: Optional[int
            copy_based: bool = False) -> Dict[str, Any]:
     return {"number": number, "locator": locator, "label": None, "status": status, "count": count,
             "ref": refs[0] if len(refs) == 1 and count == 1 else None, "refs": refs, "visible": 0, "color": None,
-            "label_truncated": False, "element_kind": None,
+            "label_truncated": False, "number_only": 0, "element_kind": None,
             "kind": _KIND_NAME.get(kind, kind) if kind else None, "tier": RANK[kind] if kind else None, "copy_based": copy_based}
 
 
@@ -183,13 +187,15 @@ def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[s
     except OverlayError as exc:
         return {"refused": exc.reason}                   # anything else is a bug here, not the caller's picture: it is not hidden as a 422
     shown_boxes, colors, drawn_text = dict(picture.boxes), dict(picture.colors), dict(picture.texts)
+    fell_back = dict(picture.number_only)
     for e in legend:
         e["visible"] = shown_boxes.get(e["number"], 0)
         e["color"] = colors.get(e["number"])
+        e["number_only"] = fell_back.get(e["number"], 0)
         if req.options.labels == "locators" and e["locator"]:
             # the text that is on the picture (or would be: a locator with no box is drawn nowhere); the legend's `locator` is whole
-            e["label"] = drawn_text.get(e["number"], clean_label(e["locator"])) or None
-            e["label_truncated"] = e["label"] != clean_label(e["locator"], len(e["locator"]) + 3)
+            e["label"] = drawn_text.get(e["number"], None if e["number_only"] else clean_label(e["locator"])) or None
+            e["label_truncated"] = e["label"] is not None and e["label"] != clean_label(e["locator"], len(e["locator"]) + 3)
         if e["visible"] == 0 and e["status"] == "matched" and e["number"] not in capped:
             e["status"] = "not_visible"
     return {"image": {"media_type": "image/png", "data": base64.b64encode(picture.png).decode("ascii"),
@@ -199,6 +205,7 @@ def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[s
                         "not_visible": sum(1 for e in legend if e["status"] == "not_visible") if req.locators is not None else skipped,
                         "by_status": dict(Counter(e["status"] for e in legend)),
                         "by_element_kind": dict(Counter(e["element_kind"] for e in legend if e["element_kind"])),
+                        "number_only": sum(1 for e in legend if e["number_only"]),
                         "inventory": len(req.page.inventory),
                         "inventory_complete": inv.complete},
             "truncated": truncated}

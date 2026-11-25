@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from voyageur.overlay import _PALETTE, render
+from voyageur.overlay import _PALETTE, Mark, render, render_marks
 
 pytestmark = pytest.mark.browser
 
@@ -162,3 +162,34 @@ def test_unscrolled_the_same_marks_would_be_somewhere_else(browser):
     boxes = [(i["box"]["x"], i["box"]["y"], i["box"]["width"], i["box"]["height"]) for i in items]
     wrong = render(png, boxes, (view["w"], view["h"], view["dpr"]), (0, 0))      # the scroll left out: nothing is on screen
     assert wrong.drawn == (1,)                                                   # only the top button, drawn over empty page
+
+
+DRIFT_FR = Path(__file__).resolve().parents[2] / "testbed" / "site" / "drift-fr" / "index.html"
+
+
+@pytest.mark.parametrize("labels", ["numbers", "locators"])
+def test_on_a_real_page_no_tab_covers_another_marked_element_or_tab(browser, labels):
+    """Every element the probe lists on the drift-fr testbed page is marked; a tab sits outside its own box, covers no marked box that
+    does not hold its element and no other tab, and a line of locator text covers no marked box at all."""
+    page = browser.new_page(viewport={"width": 900, "height": 640}, device_scale_factor=1)
+    try:
+        page.goto(DRIFT_FR.as_uri())
+        items = page.evaluate(PROBE)["items"]
+        png = page.screenshot(type="png")
+    finally:
+        page.close()
+    boxes = [(i["box"]["x"], i["box"]["y"], i["box"]["width"], i["box"]["height"]) for i in items]
+    texts = [f'page.get_by_test_id("{i.get("testid") or "element"}-{n}")' for n, i in enumerate(items, start=1)]
+    marks = [Mark(n, b, t if labels == "locators" else "") for n, (b, t) in enumerate(zip(boxes, texts), start=1)]
+    out = render_marks(png, marks, (900, 640, 1), labels=labels)
+    assert len(out.tabs) == len(marks) >= 10
+    assert all(0 <= t[0] < t[2] <= 900 and 0 <= t[1] < t[3] <= 640 for t in out.tabs)
+    assert all(not (a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]) for n, a in enumerate(out.tabs) for b in out.tabs[n + 1:])
+    drawn_as_text = {number - 1 for number, _ in out.texts}
+    rects = [(x, y, x + w, y + h) for x, y, w, h in boxes]
+    for tab, owner in zip(out.tabs, out.tab_owners):
+        for j, r in enumerate(rects):
+            holds = j != owner and all(a <= b for a, b in zip(r[:2], rects[owner][:2])) and all(a >= b for a, b in zip(r[2:], rects[owner][2:]))
+            covers = tab[0] < r[2] and r[0] < tab[2] and tab[1] < r[3] and r[1] < tab[3]
+            assert not (covers and (not holds or owner in drawn_as_text)), (owner, j, tab, r)
+    assert (labels == "locators") == bool(drawn_as_text)                               # some lines of text fit beside their boxes on this page

@@ -796,6 +796,7 @@ class LegendEntry(BaseModel):
     number: int
     locator: Optional[str] = None           # as sent, or the one the service would write; None: no stable locator is unique
     label: Optional[str] = None             # the text drawn for it (labels "locators"), None when the number was drawn
+    number_only: int = 0                    # labels "locators": boxes that show the number alone because the text had no room outside the box; `locator` has it whole
     label_truncated: bool = False           # the drawn text is shorter than `locator` (capped, or too wide for the picture): `locator` is whole
     color: Optional[str] = None             # #rrggbb of its box and tab; boxes that overlap are given different colors
     element_kind: Optional[Literal["interactive", "text"]] = None     # when no locators were sent: what kind of element it is
@@ -816,6 +817,7 @@ class OverlaySummary(BaseModel):
     not_visible: int                        # locators: entries with status not_visible; none sent: elements hidden or off the picture
     by_status: Dict[str, int]
     by_element_kind: Dict[str, int] = Field(default_factory=dict)      # when no locators were sent: legend entries per element kind
+    number_only: int = 0                    # legend entries with at least one box that shows its number alone for want of room for the text
     inventory: int
     inventory_complete: bool                # the probe listed every element (inventory_more is 0)
 

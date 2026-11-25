@@ -492,8 +492,28 @@ function overview(m, params, caps) {
     h("dt", { text: "Advise requests" }), h("dd", {}, h("a", { href: L(D.advise), text: `${fmt(m.advise.requests)} (${fmt(m.advise.advised)} advised)` })),
     h("dt", { text: "Advise tokens" }), h("dd", { text: fmt(m.advise.input_tokens + m.advise.output_tokens) })),
     h("div", { class: "note", text: "Advise requests are counted here and left out of every rate above." }));
+  /* By model: the outcomes of every model over the heals it took part in. Each number is a link to the heals behind it. */
+  const link = (n, q, title) => h("a", { href: L(q), title, text: fmt(n) });
+  const withModel = m.outcomes_without_model;
+  const byModel = panel("By model", m.outcomes_by_model.length ? h("div", { class: "scroll" }, h("table", { class: "cards" },
+    h("thead", {}, h("tr", {}, [["Model", ""], ["Heals", "r"], ["Healed", "r"], ["Verified", "r"], ["Needs human", ""], ["Wrong element caught", "r"], ["Model calls", "r"], ["Tokens", "r"], ["Cost", "r"]].map(([t, c]) => h("th", { class: c, text: t })))),
+    h("tbody", {}, m.outcomes_by_model.map((r) => h("tr", {},
+      h("td", { "data-label": "Model" }, h("a", { href: L(D.by_model[r.model].heals) }, h("div", { class: "mono wrapword", text: r.model }))),
+      h("td", { class: "r num", "data-label": "Heals" }, link(r.heals, D.by_model[r.model].heals, "every heal this model made a call in")),
+      h("td", { class: "r num", "data-label": "Healed" }, link(r.healed, D.by_model[r.model].healed, "heals that ended healed")),
+      h("td", { class: "r num", "data-label": "Verified" }, link(r.verified_heals, D.by_model[r.model].verified_heals, "healed, and the exact test went green after the patch")),
+      h("td", { "data-label": "Needs human" }, link(r.needs_human, D.by_model[r.model].needs_human, "heals that ended needs human"),
+        Object.entries(r.needs_human_by_reason).sort((a, b) => b[1] - a[1]).map(([reason, n]) => h("div", { class: "muted" }, h("a", { href: L(D.by_model[r.model].needs_human_by_reason[reason]), text: `${Object.hasOwn(REASON, reason) ? REASON[reason] : words(reason)} ${fmt(n)}` })))),
+      h("td", { class: "r num", "data-label": "Wrong element caught" }, link(r.wrong_element_catches, D.by_model[r.model].wrong_element_catches, "candidates verify stopped on the wrong element; opens the heals that had one")),
+      h("td", { class: "r num", "data-label": "Model calls" }, link(r.model_calls, D.by_model[r.model].model_calls, "calls by this model; opens the heals they were made in")),
+      h("td", { class: "r num", "data-label": "Tokens" }, link(r.input_tokens + r.output_tokens, D.by_model[r.model].model_calls, `${fmt(r.input_tokens)} in, ${fmt(r.output_tokens)} out; opens the heals they were spent in`)),
+      h("td", { class: "r num", "data-label": "Cost" }, h("a", { href: L(D.by_model[r.model].model_calls), title: "opens the heals this cost was spent in", text: cost(r.cost) })))))))
+    : h("div", { class: "empty", text: "No heal has made a model call yet." }),
+    withModel.heals ? h("div", { class: "note" }, h("a", { href: L(D.outcomes_without_model), text: `${fmt(withModel.heals)} heals made no model call` }),
+      ` (${fmt(withModel.healed)} healed, ${fmt(withModel.needs_human)} needs human): a fingerprint match or a triage answer.`) : null,
+    h("div", { class: "note", text: m.outcomes_by_model_note + ", so rows can overlap. Cost needs a price per model in HEAL_MODEL_PRICES." }));
   return [m.truncated ? h("div", { class: "pane thin body", text: "Showing the newest 20,000 heals of this window." }) : null, tiles,
-    h("div", { class: "grid" }, mix, why, settled, moves, kept, wrong, runs, spots, spend, speed, lang, extra)];
+    h("div", { class: "grid" }, mix, why, settled, moves, kept, wrong, runs, spots, spend, speed, lang, extra), byModel];
 }
 
 /* ---- heal list --------------------------------------------------------------------------------------------------- */

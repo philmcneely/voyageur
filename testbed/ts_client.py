@@ -320,7 +320,7 @@ def heal_step(svc: Any, wd: TsWorkdir, test: str, result: Dict[str, Any], step: 
                 "heal_id": d.get("heal_id"), "status": resp["status"], "reason": resp["reason"], "why": resp["why"],
                 "settled_at": resp["settled_at"], "ended_at": resp.get("ended_at"), "calls": usage.get("calls", 0),
                 "input_tokens": usage.get("input_tokens", 0), "output_tokens": usage.get("output_tokens", 0), "rounds": resp["round"],
-                "tries": [t["result"] for t in record["tries"]], "candidates": [],
+                "tries": [t["result"] for t in record["tries"]], "candidates": [], "duration_ms": record.get("duration_ms"),
                 "wrong_catches": sum(1 for t in record["tries"] if t["result"] in ("wrong_element", "rerun_failed")),
                 "tier_movement": record.get("tier_movement"), "below_floor": bool(record.get("below_floor")),
                 "branch": bool(record.get("branch")), "cache_hit": bool(record.get("cache_hit")),

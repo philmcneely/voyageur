@@ -15,6 +15,10 @@ Grafana board and alerts.
     voyageur_model_tokens_total{role,model,direction}   direction is input or output
     voyageur_model_images_total{role,model}
     voyageur_model_call_duration_seconds{role,model}    histogram
+    voyageur_model_heals_total{model,outcome}      heals (not advise or diagnose) that reached a final answer, by each model that made a call
+                                                   in them: a heal that used two models counts under both; no call, no series
+    voyageur_model_needs_human_total{model,reason} the needs_human ones of those, by reason code
+    voyageur_model_wrong_element_total{model}      wrong-element catches in those heals
     voyageur_cache_hits_total                      heals served by the decision cache
     voyageur_wrong_element_total                   candidates that landed on the wrong element and were caught
     voyageur_followups_total{pr_state}             post-PR reports
@@ -48,6 +52,9 @@ HELP = {
     "model_tokens_total": ("counter", "Model tokens by role, model and direction"),
     "model_images_total": ("counter", "Images sent to a model"),
     "model_call_duration_seconds": ("histogram", "Seconds one model call took"),
+    "model_heals_total": ("counter", "Heals that reached a final answer, by outcome and each model that made a call in them"),
+    "model_needs_human_total": ("counter", "needs_human answers by reason code and each model that made a call in the heal"),
+    "model_wrong_element_total": ("counter", "Wrong-element catches by each model that made a call in the heal"),
     "cache_hits_total": ("counter", "Heals served by the decision cache"),
     "wrong_element_total": ("counter", "Candidates that landed on the wrong element and were caught by verify"),
     "followups_total": ("counter", "Post-PR reports by PR state"),
@@ -93,10 +100,17 @@ class Telemetry:
             self._hists[key] = (counts, total + value, n + 1)
 
     # ---- what the core reports ---------------------------------------------------------------------------------
-    def heal(self, outcome: str, mode: str, reason: str, seconds: float, cache_hit: bool, wrong_element: int) -> None:
+    def heal(self, outcome: str, mode: str, reason: str, seconds: float, cache_hit: bool, wrong_element: int,
+             models: Iterable[str] = ()) -> None:
         self.inc("heals_total", outcome=outcome, mode=mode)
         if outcome == "needs_human":
             self.inc("needs_human_total", reason=reason or "unknown")
+        for model in models if mode == "heal" else ():            # each model that made a call in this heal
+            self.inc("model_heals_total", model=model, outcome=outcome)
+            if outcome == "needs_human":
+                self.inc("model_needs_human_total", model=model, reason=reason or "unknown")
+            if wrong_element:
+                self.inc("model_wrong_element_total", wrong_element, model=model)
         self.observe("heal_duration_seconds", seconds, mode=mode)
         if cache_hit:
             self.inc("cache_hits_total")

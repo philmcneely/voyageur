@@ -286,11 +286,11 @@ heal that matches, whatever the page size).
 | `repo`, `framework`, `language` (client language), `page_language`, `test_id`, `file`, `locator_key`, `settled_at`, `ended_at` | that value |
 | `run` (or `run_id`) | one run |
 | `outcome`, `reason`, `tier_movement`, `pr_state`, `mode` | one value, or several separated by commas (`pr_state=edited,reverted`). `reason=unknown` and `pr_state=none` match a record that holds none |
-| `drift`, `branch`, `budget_exhausted`, `cache_hit`, `failed_again`, `below_floor` | `1` or `0` |
+| `drift`, `branch`, `budget_exhausted`, `cache_hit`, `failed_again`, `below_floor`, `verify_passed` | `1` or `0` (`verify_passed=1`: the exact test went green after the patch) |
 | `wrong_element=1` | a candidate landed on the wrong element and verify caught it |
 | `with_calls=1` | at least one model call was made |
 | `led_to_fix=1` | healed and not edited, reverted or closed unmerged |
-| `model`, `role`, `local=1` or `0` | a model call by that model, in that role, local or cloud |
+| `model`, `role`, `local=1` or `0` | a model call by that model, in that role, local or cloud: a heal matches when any of its model calls did |
 | `durability` | `pass` (merged unchanged, 10 runs and 30 days, never failed again), `fail` (failed again), `pending` (reported on, too young to judge) |
 | `from`, `to` | epoch seconds or an ISO 8601 date |
 
@@ -304,7 +304,8 @@ file in a spreadsheet never runs a formula. Times are ISO 8601 UTC.
 ## GET /v1/metrics
 
 The headline numbers and the breakdowns behind them, with the same filters as the list (`repo`, `framework`, `language`, `page_language`,
-`run`, `from`, `to`). Advise-mode requests are reported on their own under `advise` and are left out of every rate. A figure with nothing
+`run`, `model`, `from`, `to`; with `model` the aggregates cover the heals in which any model call used that model, with all of their calls).
+Advise-mode requests are reported on their own under `advise` and are left out of every rate. A figure with nothing
 to divide by is `null`. Each definition is in `src/voyageur/metrics.py`:
 
 | Spec number | Keys |
@@ -314,6 +315,7 @@ to divide by is `null`. Each definition is in `src/voyageur/metrics.py`:
 | Tests fixed, locators fixed | `tests_fixed`, `locators_fixed` |
 | Model calls, calls that led to a fix | `model_calls`, `calls_per_fixed_test`, `calls_that_led_to_fix`, `calls_that_led_to_fix_rate` |
 | Tokens and cost per fix | `input_tokens`, `output_tokens`, `tokens_per_fix`, `tokens_per_kept_heal`, `cost`, `cost_per_fix`, `cost_by_model`, `cost_by_role` (cost only when every model used has a price in `HEAL_MODEL_PRICES`, a JSON object of price per million tokens) |
+| Outcomes by model | `outcomes_by_model`: per model, `heals`, `healed`, `verified_heals` (healed, and the exact test went green), `needs_human` and `needs_human_by_reason`, `wrong_element_catches`, `model_calls`, tokens and `cost` (`null` without a price). A heal that used two models counts under both (`outcomes_by_model_note`); `outcomes_without_model` counts the heals that made no model call. Every number has a link in `drill.by_model` |
 | Kept rate | `kept_rate` (merged unchanged / PRs closed), `kept`, `pr_closed`, `pr_state` |
 | Durability | `durability` (`rate`, `eligible`, `held`, `pending`, `broke_again`) |
 | Escaped wrong heals | `escaped_wrong_heals` (healed, then edited or reverted by a human; the target is 0) |
@@ -504,7 +506,9 @@ config). Counters and histograms are kept in memory as events happen, so a resta
 `voyageur_heals_total{outcome,mode}`, `voyageur_needs_human_total{reason}`, `voyageur_heal_duration_seconds` (histogram),
 `voyageur_model_calls_total{role,model,local,ok}`, `voyageur_model_tokens_total{role,model,direction}`,
 `voyageur_model_images_total`, `voyageur_model_call_duration_seconds` (histogram), `voyageur_cache_hits_total`,
-`voyageur_wrong_element_total`, `voyageur_followups_total{pr_state}`, `voyageur_followup_failed_again_total`,
+`voyageur_wrong_element_total`, `voyageur_model_heals_total{model,outcome}`, `voyageur_model_needs_human_total{model,reason}` and
+`voyageur_model_wrong_element_total{model}` (heals, not advise or diagnose, counted under each model that made a call in them),
+`voyageur_followups_total{pr_state}`, `voyageur_followup_failed_again_total`,
 `voyageur_audits_total`, `voyageur_overlays_total`, `voyageur_diagnoses_total{cause,confidence}`, and the gauges `voyageur_info{version}` and `voyageur_open_conversations`. Nothing from a request (file
 text, page copy, a locator, a test name) is ever a label.
 

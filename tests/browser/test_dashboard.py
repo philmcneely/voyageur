@@ -103,6 +103,24 @@ def test_every_headline_tile_opens_the_list_of_heals_behind_its_number(browser, 
     context.close()
 
 
+def test_the_by_model_panel_links_every_number_to_the_heals_behind_it(browser, service):
+    base, store = service
+    context, page, problems = open_page(browser, base)
+    page.wait_for_selector("section.pane:has(h2:has-text('By model')) tbody tr")
+    row = page.locator("section.pane:has(h2:has-text('By model')) tbody tr").filter(has=page.get_by_text("qwen3:8b", exact=True))
+    want = {"Heals": store.count_heals(mode="heal", model="qwen3:8b"),
+            "Healed": store.count_heals(mode="heal", model="qwen3:8b", outcome="healed"),
+            "Verified": store.count_heals(mode="heal", model="qwen3:8b", outcome="healed", verify_passed=1),
+            "Wrong element caught": store.count_heals(mode="heal", model="qwen3:8b", wrong_element=1)}
+    for label in want:
+        page.goto(base + "/dashboard#/")
+        page.wait_for_selector("section.pane:has(h2:has-text('By model')) tbody tr")
+        row.locator(f"td[data-label='{label}'] a").click()
+        assert settle(page, want[label]) == want[label], label
+    assert not problems
+    context.close()
+
+
 def test_a_chip_removes_a_filter_and_a_row_opens_the_record(browser, service):
     base, store = service
     context, page, _ = open_page(browser, base, "#/heals?outcome=healed&tier_movement=up")

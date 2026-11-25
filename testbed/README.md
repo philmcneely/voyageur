@@ -26,6 +26,7 @@ ends `needs_human` on a flow change.
   `run_expected.py` regenerates `expected*.json` (it runs both languages; the TypeScript side needs `npm install` in `tests/ts`).
   `verify_golden.py` applies every golden heal and runs the suites with no model (all must pass; `--each` leaves one out and checks it fails).
 - `serve.py` the static server. `run_acceptance.py` the service acceptance run. `acceptance-gaps.json` the known misses (below).
+  `bench.py` runs the acceptance run once per model and compares them; `bench_report.py` builds that comparison (below).
 
 ## The drift spec
 
@@ -129,6 +130,57 @@ single hit the listing cannot match records the differing facts in `hit_notes`.
 with the outcome and reason it gives instead (a `needs_human` with `no_stable_locator`, `no_pick` or `no_candidate_left`). A step in that file counts as
 met while the service still gives that answer; if the service starts healing it, the row is flagged `gap_closed` and the entry should be removed.
 The gaps apply to the fake model with default settings only. `--write-gaps` rewrites the file from the current run: review the diff.
+
+## Comparing models: the bench
+
+`bench.py` runs the acceptance run once per model (an arm) and writes one comparison: the scripted `fake` arm is always the first column
+(the ceiling: what the pipeline gives when the model's pick is right), then each model. Use it when a model did poorly and you want to see how
+a stronger one does on the same broken suites. Everything is measured against the golden files; no request is captured or replayed and nothing
+is run in shadow.
+
+```
+export CHEAP_KEY=... STRONG_KEY=...          # the keys stay in the environment; an arm names the variable, never the key
+uv run python testbed/bench.py \
+  --arm name=cheap,base_url=http://localhost:8000/v1,model=small-7b,api_key_env=CHEAP_KEY \
+  --arm name=strong,base_url=http://localhost:8001/v1,model=big-70b,api_key_env=STRONG_KEY,price_input=0.6,price_output=2.4 \
+  --spec drift orders --repeat 3 --fingerprints off
+```
+
+`uv sync --all-extras && uv run playwright install chromium` first (the suites need Playwright). Reports go to `testbed/.runs/bench/`
+(`--out`): `bench.md`, `bench.json`, and under `<arm>/run<N>/` each run's `acceptance.json`, `acceptance.md` and `run.log`.
+
+**Arms.** A `--arm` flag is `key=value` pairs separated by commas: `name`, `base_url`, `model`, `provider` (`openai`, the default, or
+`anthropic`), `api_key_env` (the NAME of the variable holding the key, in capitals), `price_input` and `price_output` (per million tokens,
+for the cost row). A value that needs a comma (an `extra_body`) goes in a JSON object instead: `--arm '{"name": "x", "base_url": "...",
+"model": "...", "extra_body": {"temperature": 0}}'` (the report names an `extra_body`'s keys and never prints its values; a value that is a credential belongs in `--arms-file`, since a
+flag shows in the process list). The bench prints which variable each arm sends to which host before it starts. The
+service's own egress rule applies to every `base_url`: https anywhere, plain http only to a loopback or private host. Many arms are easier in a file: `--arms-file arms.json` (`{"arms": [ ... ]}`) or
+`arms.toml` (`[[arms]]` tables) with the same fields. The name `fake` is the ceiling's and is added for you.
+
+**Fairness.** Every arm runs the same specs and client and the same shared settings, given once and printed at the top of the report:
+`--max-tokens`, `--candidate-cap`, `--max-calls`, `--timeout-s` (the model request), `--action-timeout-ms` (the suites), `--thinking`,
+`--fingerprints`. Unset, they are the service's own defaults, and the report shows the values in force. Each arm's run starts from your
+environment with every `HEAL_*` variable removed (except `HEAL_MODEL_PRICES`, shared by all arms, and `HEAL_TS_CLIENT_DIR`), so nothing set in your
+shell can favour one arm. Use `--fingerprints off` to make every heal start at the text pick; with the default `on`, most `drift` steps
+settle at step 2 without a model call and the models differ on fewer steps.
+
+**Repeats and order.** `--repeat N` runs each model arm N times, because a real model is not repeatable; the report shows min, max and mean.
+The scripted arms are deterministic and run once. Arms run one after the other; `--parallel-arms` runs them at the same time (the repeats of
+one arm never overlap), which is faster when the arms are different servers and wrong when they share one GPU, since latency would then
+include the wait for the other arm.
+
+**What the report holds.** A header line (date, voyageur version, git commit, specs, client, repeats); the shared settings and any setting an
+arm sets for itself (only a scripted arm may: `kind=fake,candidate_cap=8`, which is how the bench is proved without a model); a table with
+one column per arm: healed, needs_human and its reasons, wrong heals kept, wrong element caught, steps run / golden, steps matching the golden
+file, model calls, tokens, cost (n/a without a price), heal latency and model-call latency p50 and p95; a fit line per arm (its wrong heals
+kept, and its healed count as a share of the ceiling's); and the steps where the arms differ, each arm's pick (the locator it wrote, or its
+needs_human reason) marked `ok`, `MISS` (no heal where the golden file has an element) or `WRONG` (a heal on another element, or where the
+element is gone). `docs/RESULTS.md` says how to read each number.
+
+The exit status is 2 for a malformed arm or an unset key variable (nothing ran), 1 when an arm produced no result or the scripted ceiling kept
+a wrong heal, 0 otherwise: a real model's misses and wrong heals are findings in the report, not failures of the bench. The bench is not a
+`voyageur` subcommand on purpose: it needs this directory (the sites, suites and golden files, and a Playwright browser), which an installed
+package does not have, and the package may not run programs.
 
 ## The hard-locator spec (orders, v7-v9)
 

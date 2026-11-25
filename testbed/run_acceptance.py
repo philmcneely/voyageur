@@ -36,6 +36,9 @@ Features:
     ✓ Reports per variant: outcome counts, settled-at step histogram (2 same-element match, 3 text pick), model calls, input
       and output tokens, wrong-element catches, tests passed, and whether every step met its expectation
     ✓ Exit status 1 when any step misses its expectation, any healed step is not on the golden element, or a base run is red
+    ✓ For testbed/bench.py (the model comparison): every row also holds the service's `duration_ms` and the golden element
+      (`golden_target`), and an in-process run ends with `service_metrics` (the service's own cost, latency and outcomes by model
+      for this run); --candidate-cap and --max-calls set the pipeline's knobs of the scripted model
 
 Environment Variables:
     HEAL_TEXT_BASE_URL, HEAL_TEXT_MODEL, HEAL_TEXT_API_KEY, HEAL_TEXT_PROVIDER   (--model env) the model the service uses
@@ -108,6 +111,15 @@ def load_golden(spec: str) -> Dict[str, List[Dict[str, Any]]]:
     return out
 
 
+def scrub_model_credentials(env: Any) -> List[str]:
+    """Remove the model credentials (HEAL_*_API_KEY, _HEADERS, _EXTRA_BODY) from `env`, once the service has been built from them:
+    the suites, the browser and the TypeScript client are started with a copy of the environment and have no use for a key."""
+    gone = [k for k in list(env) if k.startswith("HEAL_") and k.endswith(("API_KEY", "_HEADERS", "_EXTRA_BODY"))]
+    for k in gone:
+        del env[k]
+    return gone
+
+
 GAPS_FILE = HERE / "acceptance-gaps.json"
 GAP_NOTES = {
     "source_not_found": "the failing expression was not found in the sent source (printed form differs from the written one)",
@@ -166,7 +178,8 @@ class ScriptedModel:
 class Service:
     """The heal API as the runner uses it: post / get returning decoded JSON."""
 
-    def __init__(self, mode: str, url: Optional[str], candidate_cap: Optional[int] = None, vision: str = "off") -> None:
+    def __init__(self, mode: str, url: Optional[str], candidate_cap: Optional[int] = None, vision: str = "off",
+                 max_calls: Optional[int] = None) -> None:
         self.model: Optional[ScriptedModel] = None
         headers: Dict[str, str] = {}
         self.http_url = None
@@ -184,7 +197,8 @@ class Service:
         from voyageur.store import Store
         if mode == "fake":
             self.model = ScriptedModel()
-            settings = ServiceSettings(retention_days=1, **({"candidate_cap": candidate_cap} if candidate_cap else {}))
+            settings = ServiceSettings(retention_days=1, **({"candidate_cap": candidate_cap} if candidate_cap else {}),
+                                       **({"max_calls": max_calls} if max_calls else {}))
             core = HealSession(settings, Store(":memory:", 1), self.model, Endpoint(base_url="http://localhost:1/v1",
                                                                                      model="scripted-fake"),
                                vision_endpoint=Endpoint(base_url="http://localhost:1/v1", model="scripted-fake-vision",
@@ -491,6 +505,7 @@ def heal_step(svc: Service, wd: Workdir, dump: Dict[str, Any], test: str, result
                 "calls": resp["usage"]["calls"], "input_tokens": resp["usage"]["input_tokens"],
                 "output_tokens": resp["usage"]["output_tokens"], "rounds": resp["round"],
                 "tries": [t["result"] for t in record_row["tries"]], "candidates": candidates,
+                "duration_ms": record_row.get("duration_ms"),
                 "wrong_catches": sum(1 for t in record_row["tries"] if t["result"] in ("wrong_element", "rerun_failed")),
                 "tier_movement": record_row.get("tier_movement"), "below_floor": bool(record_row.get("below_floor")),
                 "branch": bool(record_row.get("branch")), "cache_hit": bool(record_row.get("cache_hit")),
@@ -563,6 +578,7 @@ def run_variant(svc: Service, spec: str, variant: str, steps: List[Dict[str, Any
                 row = (ts_client.heal_step(svc, wd, test, res, step, use_fingerprints, f"{spec}-{variant}", meets) if ts
                        else heal_step(svc, wd, dump, test, res, step, fingerprints, f"{spec}-{variant}", use_fingerprints, vision))
                 row["step_index"] = steps.index(step) if step else None
+                row["golden_target"] = (step.get("target_ts" if ts else "target") if step else None)   # what a bench compares each pick with
                 # with vision on, a step the gates refuse can end on another gate's code (the vision call takes the place of the
                 # second text call, so `no_pick` from the scripted text repeat becomes the refusal of the vision pick): the
                 # recorded gap is the outcome then, and the row says which reason it got
@@ -663,6 +679,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="the client's HEAL_VISION: off sends no screenshot at all; auto / on send one viewport screenshot and the "
                          "service may use it (see core.py)")
     ap.add_argument("--candidate-cap", type=int, default=None, help="(fake model) lines in the pick list; default is the service's own")
+    ap.add_argument("--max-calls", type=int, default=None, help="(fake model) model calls per heal; default is the service's own")
     ap.add_argument("--write-gaps", action="store_true",
                     help="record this run's misses as the known gaps in acceptance-gaps.json (fake model, default settings; review the diff)")
     ap.add_argument("--client", choices=["python", "ts"], default="python",
@@ -681,7 +698,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             raise SystemExit("run_acceptance: --client ts needs --ts-client-dir (or $HEAL_TS_CLIENT_DIR): the TypeScript client's repository with `npm ci` done")
         if args.vision != "off" or args.service_url:
             raise SystemExit("run_acceptance: --client ts runs with --vision off against the in-process service")
-    svc = Service(args.model, args.service_url, args.candidate_cap, args.vision)
+    svc = Service(args.model, args.service_url, args.candidate_cap, args.vision, args.max_calls)
+    scrub_model_credentials(os.environ)
     app_site = None
     if ts_mode:
         svc.serve_http()
@@ -755,6 +773,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         GAPS_FILE.write_text(json.dumps(gaps, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print("wrote", GAPS_FILE)
     report["seconds"] = round(time.time() - started, 1)
+    if not args.service_url:       # an in-process service holds this run only: its own totals (cost, latency, outcomes by model)
+        m = svc.get("/v1/metrics")
+        report["service_metrics"] = {k: m[k] for k in ("model_calls", "input_tokens", "output_tokens", "cost", "latency",
+                                                       "cost_by_model", "outcomes_by_model", "outcomes_without_model")}
     (out_dir / "acceptance.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (out_dir / "acceptance.md").write_text(markdown(report), encoding="utf-8")
     print(f"\nwrote {out_dir / 'acceptance.json'} and {out_dir / 'acceptance.md'}")

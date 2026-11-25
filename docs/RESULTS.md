@@ -108,6 +108,50 @@ known not to heal yet, each with its reason) and prints `as expected`. Under the
 expected. Under a real model more rows are marked as not expected, for the reasons above: those are steps the model did not place, not
 wrong heals. In every run `wrong kept` was 0.
 
+## Comparing models
+
+The runs above use one model at a time and say so only in words. `testbed/bench.py` puts several models through the same specs, with
+the same settings, and prints one report; how to run it is in [testbed/README.md](../testbed/README.md#comparing-models-the-bench). It
+measures with the golden files and nothing else: no request is captured or replayed, and no model is run in shadow beside a live one.
+
+How to read the report:
+
+- **The scripted column is the ceiling.** It is the `fake` arm: the pick is always the golden element and it is never wrong, so what it
+  heals is what the pipeline can heal at all under these settings. A model's healed count means little without it. The fit line of each arm
+  gives the count as a share of the ceiling's.
+- **Wrong heals kept is the number that has to be 0, for every arm.** The gates and the client's verify step stand between any pick and a
+  kept heal, so a model that picks worse is expected to show it in `needs_human` (a miss) and in `wrong element caught` (a candidate the
+  client tried and rejected), not in a wrong heal kept. A non-zero here is a finding about the gates, and the report prints it for whichever
+  arm it came from.
+- **Healed, needs_human by reason, wrong element caught** are defined as in the list at the top. The reasons say how an arm failed:
+  `no_pick` (named nothing usable), `target_missing` (said the element is not on the list), `no_identity_proof` (the pick could not be shown
+  to be the element the step meant), `no_candidate_left` and the others.
+- **Steps run / golden.** An arm that heals an early step reaches later ones; an arm that does not may run fewer or more steps than the golden
+  file lists, so compare it with the ceiling's, not with the golden count alone.
+- **Tokens and cost.** Tokens are what the service counted per call. Cost is the service's own figure from `HEAL_MODEL_PRICES` (or the
+  arm's `price_input` and `price_output`) and is n/a when a model used has no price. The scripted arm is never priced.
+- **Latency.** Heal latency is the service's time from the start of a heal to its answer, and a heal waits for the client between tries (the
+  client re-runs the test), so it includes the browser; model-call latency is the model's own. Arms run in parallel, or on a shared GPU,
+  include the other arm's load in both.
+- **Repeats.** A real model gives different answers on different runs. With `--repeat N` each number is shown as `min to max (mean m)`, and a
+  step whose pick changed between repeats is listed in the agreement view with how often each pick came. One run of one model is an anecdote.
+- **Where the arms differ** lists only the steps with different picks. `ok` is a step that ended as the golden file says; `MISS` is no heal
+  where the golden file has an element; `WRONG` is a heal on another element, or a heal where the element is gone.
+
+The service reports the same split from its own record, for a deployment that runs more than one model: `GET /v1/metrics?model=<id>` and
+`GET /v1/heals?model=<id>` keep the heals in which any model call used that model, `GET /v1/metrics` holds `outcomes_by_model` (heals,
+verified heals, needs_human by reason, wrong-element catches, tokens and cost per model, each with a link to the heals behind it), the
+dashboard shows it as the "By model" panel, and `GET /metrics` counts `voyageur_model_heals_total{model,outcome}`. A heal that used two
+models (a text pick and a vision pick) counts under both, so the rows can overlap.
+
+Python client, `drift` + `orders`, scripted ceiling against two models (repeats: each model run the same number of times; fill from a run):
+
+| Arm | Healed | needs_human | Wrong heals kept | Wrong element caught | Healed, share of the ceiling | Cost |
+| --- | --- | --- | --- | --- | --- | --- |
+| scripted ceiling | | | | | | n/a |
+| _model A_ | | | | | | |
+| _model B_ | | | | | | |
+
 ## Repeat it
 
 One-time setup:
@@ -137,6 +181,15 @@ A real model. The service reads its own `HEAL_TEXT_*` settings; the runner sets 
 export HEAL_TEXT_PROVIDER=openai HEAL_TEXT_BASE_URL=http://localhost:11434/v1 HEAL_TEXT_MODEL=your-model-id
 uv run python testbed/run_acceptance.py --model env --spec drift orders
 uv run python testbed/run_acceptance.py --model env --spec real
+```
+
+Several models side by side (the keys stay in the environment; see the testbed README for every option):
+
+```bash
+export CHEAP_KEY=... STRONG_KEY=...
+uv run python testbed/bench.py --spec drift orders --repeat 3 --fingerprints off \
+  --arm name=cheap,base_url=http://localhost:8000/v1,model=small-7b,api_key_env=CHEAP_KEY \
+  --arm name=strong,base_url=http://localhost:8001/v1,model=big-70b,api_key_env=STRONG_KEY
 ```
 
 The TypeScript client, from a checkout of its repository with `npm ci` done:

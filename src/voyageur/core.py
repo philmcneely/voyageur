@@ -946,7 +946,8 @@ class HealSession:
                                    why="the client sent no result within the open-conversation time limit",
                                    finished_at=time.time())
             self.store.finish(o.heal_id)
-            self.telemetry.heal("needs_human", "heal", "open_expired", now - o.started, o.cache_hit, 0)
+            self.telemetry.heal("needs_human", "heal", "open_expired", now - o.started, o.cache_hit, 0,
+                                sorted({m for _, m in o.usage}))
 
     def _remember(self, o: _Open) -> None:
         o.touched = self.clock()
@@ -968,7 +969,8 @@ class HealSession:
                 cache: Optional[tuple] = None, advice: Optional[Advice] = None) -> HealResponse:
         usage = self._usage(o)
         seconds = self.clock() - o.started
-        self.telemetry.heal(status, "advise" if o.advise else "heal", reason, seconds, o.cache_hit, o.wrong)
+        self.telemetry.heal(status, "advise" if o.advise else "heal", reason, seconds, o.cache_hit, o.wrong,
+                            sorted({m for _, m in o.usage}))
         self.store.update_heal(o.heal_id, outcome=status, reason=reason or None, why=why[:600] or None,
                                ended_at=ended_at, settled_at=o.settled_at, rounds=o.round, candidates_tried=o.tried,
                                wrong_element=o.wrong, cache_hit=int(o.cache_hit), budget_exhausted=int(o.budget_hit),

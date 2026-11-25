@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Heal Service</title>
+<title>Voyageur</title>
 <style>
 /* Solid Glass: every surface is a pane of smoked glass. The finish is at the edge (a line of light along the top, a hairline
    all round, a shadow gathered underneath), never a gradient across the face. Colour is for status only. No external font. */
@@ -355,7 +355,7 @@ function header(r) {
   const on = r.path.startsWith("/heal") ? "heals" : "overview";
   const g = globalParams(r.params).toString();
   return h("header", { class: "pane top" },
-    h("div", { class: "brand" }, glyph("healed", "heal service"), "Heal Service", h("small", { text: state.version ? "v" + state.version : "" })),
+    h("div", { class: "brand" }, glyph("healed", "heal service"), "Voyageur", h("small", { text: state.version ? "v" + state.version : "" })),
     h("nav", { class: "nav", "aria-label": "views" },
       h("a", { href: "#/" + (g ? "?" + g : ""), "aria-current": on === "overview" ? "page" : null, text: "Overview" }),
       h("a", { href: "#/heals" + (g ? "?" + g : ""), "aria-current": on === "heals" ? "page" : null, text: "Heals" })),
@@ -390,7 +390,7 @@ function signIn(message) {
     try { sessionStorage.setItem("heal-token", state.token); } catch (e) { /* kept in memory only */ }
     render(true);
   } }, input, h("button", { class: "btn primary", type: "submit" }, "Connect"));
-  return h("section", { class: "pane signin" }, h("div", { class: "brand" }, glyph("needs_human", "token needed"), "Heal Service"),
+  return h("section", { class: "pane signin" }, h("div", { class: "brand" }, glyph("needs_human", "token needed"), "Voyageur"),
     h("div", { text: message || "This service asks for its bearer token." }),
     form,
     h("div", { class: "note", text: "The token stays in this tab (sessionStorage), is sent only as an Authorization header to this server, and is never put in a URL." }));

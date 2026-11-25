@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-on-dark.png">
+    <img alt="Voyageur" src="docs/images/logo-on-light.png" width="430">
+  </picture>
+</p>
+
 # voyageur
 
 A small HTTP service that repairs drifted Playwright locators. A test framework sends it a failure (the error, the source files

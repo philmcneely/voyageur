@@ -175,6 +175,9 @@ class ScriptedModel:
         return CallResult(text, "", Usage(max(1, len(prompt) // 4), max(1, len(text) // 4)), 1, True)
 
 
+SERVE_START_S = 30.0                         # how long --client ts waits for the in-process HTTP server to start
+
+
 class Service:
     """The heal API as the runner uses it: post / get returning decoded JSON."""
 
@@ -235,16 +238,17 @@ class Service:
                     model.target = None
                     return {"ok": True}
             import socket
+            # uvicorn serves on this socket: closing it and binding the port again would let a parallel run take it in between
             sock = socket.socket()
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
-            sock.close()
             server = uvicorn.Server(uvicorn.Config(self.app, host="127.0.0.1", port=port, log_level="warning",
                                                    timeout_keep_alive=KEEP_ALIVE_S))
-            threading.Thread(target=server.run, daemon=True).start()
-            for _ in range(100):
-                if server.started:
-                    break
+            threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True).start()
+            deadline = time.monotonic() + SERVE_START_S
+            while not server.started:
+                if time.monotonic() > deadline:
+                    raise RuntimeError(f"the in-process service did not start on port {port} within {SERVE_START_S:g} s")
                 time.sleep(0.05)
             self.http_server, self.http_url = server, f"http://127.0.0.1:{port}"
         return self.http_url

@@ -49,6 +49,15 @@ def arm(report, name):
     return next(a for a in report["arms"] if a["name"] == name)
 
 
+def run_logs(out, lines=40):
+    """The tail of each arm's run log, for a failure message: an arm that healed nothing says why there, not in the report."""
+    tails = []
+    for log in sorted(out.glob("*/run1/run.log")):
+        text = log.read_text(encoding="utf-8", errors="replace").splitlines()
+        tails.append(f"--- {log.parent.parent.name}/run1/run.log\n" + "\n".join(text[-lines:]))
+    return "\n".join(tails) or "no run logs were written"
+
+
 def test_the_bench_finishes_and_writes_both_reports_and_each_runs_files(bench_run):
     status, out, report, md = bench_run
     assert status == 0
@@ -65,18 +74,18 @@ def test_the_header_names_the_date_version_commit_specs_and_client(bench_run):
 
 
 def test_the_ceiling_heals_more_than_the_capped_arm_and_neither_keeps_a_wrong_heal(bench_run):
-    _, _, report, _ = bench_run
+    _, out, report, _ = bench_run
     fake, low = arm(report, "fake")["summary"], arm(report, "lowcap")["summary"]
-    assert fake["healed"]["mean"] > low["healed"]["mean"]
+    assert fake["healed"]["mean"] > low["healed"]["mean"], run_logs(out)
     assert fake["wrong_kept"]["mean"] == 0 and low["wrong_kept"]["mean"] == 0
     assert fake["steps_run"]["mean"] == low["steps_run"]["mean"] > 0
     assert fake["cost"] is None and low["cost"] is None                   # a scripted model has no price
 
 
 def test_the_arms_disagree_on_a_step_the_report_lists_with_each_pick_against_the_golden_file(bench_run):
-    _, _, report, md = bench_run
+    _, out, report, md = bench_run
     steps = report["agreement"]["differ"]
-    assert steps, "the capped arm should miss a step the ceiling heals"
+    assert steps, "the capped arm should miss a step the ceiling heals\n" + run_logs(out)
     step = steps[0]
     assert step["picks"]["fake"]["verdict"] == "ok" and step["picks"]["lowcap"]["verdict"] == "miss"
     assert step["picks"]["lowcap"]["label"].startswith("needs_human") and step["golden"]
@@ -94,7 +103,7 @@ def test_the_services_own_outcomes_by_model_are_in_each_runs_acceptance_file(ben
     _, out, _, _ = bench_run
     acceptance = json.loads((out / "fake" / "run1" / "acceptance.json").read_text(encoding="utf-8"))
     rows = acceptance["service_metrics"]["outcomes_by_model"]
-    assert [r["model"] for r in rows] == ["scripted-fake"] and rows[0]["heals"] > 0 and rows[0]["cost"] is None
+    assert [r["model"] for r in rows] == ["scripted-fake"] and rows[0]["heals"] > 0 and rows[0]["cost"] is None, run_logs(out)
     assert all(r["duration_ms"] is not None and "golden_target" in r for v in acceptance["variants"] for r in v["rows"])
 
 

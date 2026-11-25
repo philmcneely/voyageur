@@ -534,6 +534,38 @@ def test_the_boxes_drawn_on_one_picture_are_bounded_whatever_the_locators_match(
     assert all(e["count"] == 400 and len(e["refs"]) == 50 for e in out["legend"])
 
 
+def test_a_locator_left_without_boxes_by_the_cap_is_not_called_not_visible_and_the_answer_says_truncated():
+    inv = [{"ref": f"e{i}", "tag": "button", "attrs": {"id": f"b{i}"}, "box": {"x": 5 + (i % 25) * 38, "y": 5 + (i // 25) * 28, "w": 30, "h": 20}}
+           for i in range(400)]
+    out = run(locators=["page.locator('button')"] * 13 + ["page.locator('#b3')"], inventory=inv, w=1000, h=600)
+    last = out["legend"][-1]
+    assert last["status"] == "matched" and last["visible"] == 0 and last["ref"] == "e3"        # on the picture, but its box was not drawn
+    assert out["truncated"] is True
+    assert run(locators=["page.locator('#b3')"], inventory=inv, w=1000, h=600)["truncated"] is False
+
+
+def test_a_lone_surrogate_in_a_locator_is_a_422_not_a_500():
+    c, _ = client()
+    for bad in ("page.locator(\"#go\ud800\")", "\udfff"):
+        with pytest.raises(ValidationError, match="UTF-8"):
+            parse_overlay_request(body([bad]))
+        r = c.post("/v1/overlay", content=json.dumps(body(["page.locator('#go')"])).replace("#go", "#go\\ud800"), headers={**AUTH, "Content-Type": "application/json"})
+        assert r.status_code == 422, r.text
+
+
+def test_a_bug_in_drawing_is_not_reported_as_the_callers_bad_picture(monkeypatch):
+    from voyageur import marks
+
+    def boom(*a, **k):
+        raise RuntimeError("a bug")
+    monkeypatch.setattr(marks, "render_marks", boom)
+    with pytest.raises(RuntimeError):
+        run_overlay(parse_overlay_request(body()))
+    c, _ = client()
+    c = TestClient(c.app, base_url="http://127.0.0.1", headers=JSON, raise_server_exceptions=False)
+    assert post(c, body()).status_code == 500
+
+
 def test_the_number_of_matches_marked_per_locator_is_bounded():
     inv = [{"ref": f"e{i}", "tag": "input", "attrs": {"name": f"n{i}"}, "box": {"x": 5 + (i % 25) * 38, "y": 5 + (i // 25) * 28, "w": 30, "h": 20}}
            for i in range(200)]

@@ -567,6 +567,10 @@ class OverlayRequest(_Strict):
         for expr in self.locators or []:
             if not expr.strip() or len(expr) > MAX_OVERLAY_EXPR:
                 raise ValueError(f"a locator must be 1 to {MAX_OVERLAY_EXPR} characters")
+            try:
+                expr.encode("utf-8")                         # the legend echoes it: a lone surrogate could not be sent back
+            except UnicodeEncodeError:
+                raise ValueError("a locator must be text that UTF-8 can encode") from None
         return self
 
 

@@ -34,11 +34,13 @@ Features:
     ✓ run_overlay(): a module-level function over a parsed request, so a killable worker runs it under the request deadline
     ✓ The legend of every request: number, locator, label, status, count, ref(s), how many boxes were drawn, color, kind, tier
       (the locator's stability rank), copy_based and, with no locators sent, element_kind
-    ✓ Bounded: at most 50 boxes per locator, 100 locators (schemas), 500 elements; the work budget (HEAL_AUDIT_BUDGET_S) ends the
-      matching with `truncated` true and the legend of the locators done, never an error
+    ✓ Bounded: at most 50 boxes per locator, 600 on the picture, 100 locators (schemas), 500 elements; the work budget
+      (HEAL_AUDIT_BUDGET_S) ends the matching with `truncated` true and the legend of the locators done, never an error; a
+      locator whose boxes were not all drawn for want of room (the 600) also sets `truncated` and is never reported not_visible
     ✓ Deterministic: the same request gives the same bytes (overlay.render_marks)
     ✓ A picture that does not fit its viewport, or cannot be decoded, is `{"refused": <reason>}` (the route says 422)
-    ✓ Pure: no model, no store, no log of the image or the locators
+    ✓ Pure: no model, no store, no log of the image or the locators; an error that is not a refusal above is a bug and surfaces
+      as a 500, not as a 422 that blames the picture
 
 Environment Variables:
     None here (the work budget comes from HEAL_AUDIT_BUDGET_S via the core).
@@ -47,10 +49,9 @@ Author: PMAC
 ===============================================================================
 """
 import base64
-import logging
 import time
 from collections import Counter
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .audit import MAX_AUDIT_EXPR, _hits
 from .inventory import Inventory
@@ -63,7 +64,6 @@ from .stages import write_for
 MAX_BOXES_PER_LOCATOR = 50       # boxes drawn for one ambiguous locator (its `count` still says how many it matches)
 MAX_MARKS = 600                  # boxes drawn on one picture, in all: placing and coloring them is quadratic in this
 _KIND_NAME = {"testid": "test_id"}
-log = logging.getLogger("voyageur")
 
 
 ELEMENT_KINDS = ("interactive", "text")
@@ -131,8 +131,8 @@ def _written(inv: Inventory, number: int, el: Dict[str, Any], language: str, tes
 
 def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[str, Any]:
     """The POST /v1/overlay answer for `req`, stopping the matching at `budget_s` seconds (`truncated` true, the locators done
-    in the legend). `{"refused": reason}` when the picture cannot be marked (viewport_mismatch, no_viewport, undecodable,
-    overlay_error). A module-level function: it can run in a worker process."""
+    in the legend; also true when MAX_MARKS stopped boxes being drawn). `{"refused": reason}` when the picture cannot be marked
+    (viewport_mismatch, no_viewport, undecodable). A module-level function: it can run in a worker process."""
     started = time.monotonic()
 
     def out_of_time() -> bool:
@@ -146,7 +146,8 @@ def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[s
     legend: List[Dict[str, Any]] = []
     marks: List[Mark] = []
     truncated = False
-    skipped = 0                                          # elements left unmarked when none were named: hidden, off the picture, in a frame
+    capped: Set[int] = set()                             # numbers whose boxes were not all drawn for want of room (MAX_MARKS)
+    skipped = 0                                         # elements left unmarked when none were named: hidden, off the picture, in a frame
     try:
         if req.locators is not None:
             for number, expr in enumerate(req.locators, start=1):
@@ -155,7 +156,11 @@ def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[s
                     break
                 entry, named = _resolve(inv, number, expr)
                 legend.append(entry)
-                marks.extend(Mark(number, _box(h)) for h in named[:max(0, MAX_MARKS - len(marks))])
+                room = max(0, MAX_MARKS - len(marks))
+                if len(named) > room:                    # the picture is full: this locator's boxes are not all drawn, which is no
+                    capped.add(number)                   # statement about whether the element is visible
+                    truncated = True
+                marks.extend(Mark(number, _box(h)) for h in named[:room])
         else:
             wanted = set(req.options.kinds or ELEMENT_KINDS)
             shown = [e for e in inv.elements if not e.get("hidden") and element_kind(e) in wanted]
@@ -176,10 +181,7 @@ def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[s
             marks = [Mark(m.number, m.box, texts.get(m.number, "")) for m in marks]
         picture = render_marks(shot.png(), marks, viewport, scroll, req.options.labels)
     except OverlayError as exc:
-        return {"refused": exc.reason}
-    except Exception as exc:                             # whatever a hostile image or number does, the route answers 422
-        log.warning("overlay failed: %s", type(exc).__name__)      # the type only: never the message, never image bytes
-        return {"refused": "overlay_error"}
+        return {"refused": exc.reason}                   # anything else is a bug here, not the caller's picture: it is not hidden as a 422
     shown_boxes, colors, drawn_text = dict(picture.boxes), dict(picture.colors), dict(picture.texts)
     for e in legend:
         e["visible"] = shown_boxes.get(e["number"], 0)
@@ -188,7 +190,7 @@ def run_overlay(req: OverlayRequest, budget_s: Optional[float] = None) -> Dict[s
             # the text that is on the picture (or would be: a locator with no box is drawn nowhere); the legend's `locator` is whole
             e["label"] = drawn_text.get(e["number"], clean_label(e["locator"])) or None
             e["label_truncated"] = e["label"] != clean_label(e["locator"], len(e["locator"]) + 3)
-        if e["visible"] == 0 and e["status"] == "matched":
+        if e["visible"] == 0 and e["status"] == "matched" and e["number"] not in capped:
             e["status"] = "not_visible"
     return {"image": {"media_type": "image/png", "data": base64.b64encode(picture.png).decode("ascii"),
                       "width": picture.width, "height": picture.height},

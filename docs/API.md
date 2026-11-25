@@ -450,6 +450,7 @@ to what fits the picture's width. `legend[].locator` is always the whole locator
 
 `429` (with `Retry-After`) when every slot is taken: an overlay shares the audit's slots (at most workers minus 1 at once, so a heal always gets a worker). The work is done in the killable worker
 under the request deadline: past it the answer is a 504 (a worker that died, a 503). The matching stops at `HEAL_AUDIT_BUDGET_S` with `truncated: true` and the legend of the locators done.
+At most 600 boxes are drawn on one picture; a locator whose boxes did not all fit is still reported (`visible` says how many were drawn, its status is never turned into `not_visible` by the cap) and `truncated` is `true`.
 
 ## POST /v1/diagnose
 

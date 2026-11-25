@@ -106,7 +106,7 @@ an option of `/v1/audit` or `/v1/heal`, so what it may and may not do is stated 
 - **Nothing is kept.** No heal record, no overlay row (`overlays` holds a heal's vision overlay only), no cache, no log of the image or of a locator; the counter
   `voyageur_overlays_total` counts requests and nothing else. The answer carries `Cache-Control: private, no-store`. With `HEAL_RETENTION_DAYS=0` nothing changes.
 - **Killable and bounded.** Decoding, matching and drawing run in the worker pool under the request deadline (a worker that outlives it is killed: 504; one that dies is a 503), in one
-  of the audit's slots (429 when taken, so a heal always gets a worker). At most 100 locators of 4000 characters, 50 boxes per locator, 500 inventory entries; the picture is
+  of the audit's slots (429 when taken, so a heal always gets a worker). At most 100 locators of 4000 characters (UTF-8 encodable: a lone surrogate is a 422), 50 boxes per locator and 600 on one picture (past that `truncated` is true; placing and coloring boxes is quadratic in their number), 500 inventory entries; the picture is
   downscaled to at most 1600 px on its long side.
 - **Drawn text is untrusted, and bounded.** The only text ever drawn is a locator, from the built-in bitmap (no font file, no font parser). It is cleaned first: ASCII control
   characters removed, any other character drawn as `?` (a right-to-left override or a look-alike letter cannot be drawn), cut to 48 characters and to the picture's width. A locator the
